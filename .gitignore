@@ -97,3 +97,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+/images/
+gpio-numbers-pi2.png
