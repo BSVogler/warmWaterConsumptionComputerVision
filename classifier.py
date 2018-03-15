@@ -129,10 +129,9 @@ def findRectangle(imageRGB):
         
     return maxV[1],maxderivS
 
-def make_rotation_transformation(point, angle, origin=(0, 0)):
+def rotate2Dvector(point, angle, origin=(0, 0)):
     cos_theta, sin_theta = math.cos(angle), math.sin(angle)
-    x0, y0 = origin
-    x, y = point[0] - x0, point[1] - y0
+    x, y = point[0] - origin[0], point[1] - origin[1]#translate
     Point = namedtuple('Point', 'x y')
     return Point(x * cos_theta - y * sin_theta + x0,
             x * sin_theta + y * cos_theta + y0)
@@ -217,8 +216,8 @@ if __name__ == '__main__':
     rgbOrigPIL = rgbOrigPIL.rotate(segRange[4], resample=Image.BILINEAR, center=rotationAnchor)
     
     # find rel. translation = pos*rotation - pos, where pos is seqRange[0] and [1]
-    cornerAbsolute = (rgbOrig.shape[1]*reductionWidth/2+segRange[2],rgbOrig.shape[0]*reductionHeight/2+segRange[0])
-    cornerSegment = make_rotation_transformation(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)
+    cornerAbsolute = (rgbOrig.shape[1]*reductionWidth/2+segRange[2], rgbOrig.shape[0]*reductionHeight/2+segRange[0])
+    cornerSegment = rotate2Dvector(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)
     segmentWidth = segRange[3]-segRange[2]
     segmentHeight= segRange[1]-segRange[0]
     draw = ImageDraw.Draw(rgbOrigPIL)
