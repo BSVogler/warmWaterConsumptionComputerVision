@@ -100,3 +100,4 @@ ENV/
 
 /images/
 gpio-numbers-pi2.png
+.DS_Store
