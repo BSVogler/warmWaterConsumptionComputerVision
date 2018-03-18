@@ -2,7 +2,7 @@
 
 import numpy as np
 import scipy.ndimage as ndimage
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import matplotlib
 import math
 import sys
@@ -60,14 +60,16 @@ def findMaximumColor(imgHSV, colorRGB, errormarginH, minS):
 
     #calculate histograms by projecting rows and coloumns
     bucketReduction = 30
+    numBucketHeight = nt(imgHSV.shape[0]/bucketReduction)+1
     sumtotal=0
-    rdir = np.zeros(int(imgHSV.shape[0]/bucketReduction)+1)
+    rdir = np.zeros(numBucketHeight)
     for r in range(imgHSV.shape[0]):
         lastSum = np.sum(foundTarget[r])
         sumtotal += lastSum
         rdir[int(r/bucketReduction)] += lastSum
     
-    cdir = np.zeros(int(imgHSV.shape[1]/bucketReduction)+1)
+    numBucketWidth= int(imgHSV.shape[1]/bucketReduction)+1
+    cdir = np.zeros(numBucketWidth)
     for c in range(imgHSV.shape[1]):
         lastSum = np.sum(foundTarget[:,c])
         sumtotal += lastSum
@@ -114,45 +116,57 @@ def findRectangle(imageRGB):
     if maxV == None:
         print("no central line found")
         return
+        
+    RectTupleClass = namedtuple("Rectangle", "left right top bottom")
     #look for biggest change in this line of Saturation    
     horLineHSV = imageHSV[maxV[1],:]
-    maxderivS = []
-    lastS = horLineHSV[0][1]
+    dS = np.diff(horLineHSV[:,1])
+    
+    plt.plot(dS)
+    plt.xlabel('X-Coordinate')
+    plt.show()
+    
     leftBorder = 0
     rightBorder = len(horLineHSV)
     #scan horizontally
-    for c in range(leftBorder+1,rightBorder):
-        derivS = horLineHSV[c][1] - lastS
-        lastS = horLineHSV[c][1]
-        maxderivS.append(derivS)
+    for c in range(leftBorder,rightBorder-1):
         if leftBorder==0:#first occurence
-            if derivS <= -0.027:
+            if dS[c] <= -0.027:
                 leftBorder = c + 8 #better if looking for local minimum, currently only adding fixed distortion
-        elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and derivS >= 0.027 and rightBorder==len(horLineHSV):#not red, first occurence
+        elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and dS[c] >= 0.027 and rightBorder==len(horLineHSV):#not red, first occurence
             rightBorder= c + 5
             
+
     #scan vertically
     verLineHSV = imageHSV[:,int(len(horLineHSV)/2)]#middle
-    maxderivS = []
-    lastS = verLineHSV[0][1]#sat of
-    print("LastS"+str(lastS))
+    dS = np.diff(verLineHSV[:,1])
+    ddS = np.diff(dS)
+    
     topBorder = 0
     bottomBorder = len(verLineHSV)
-    for r in range(topBorder+1, bottomBorder):
-        derivS = verLineHSV[r][1] - lastS
-        lastS = verLineHSV[r][1]
-        maxderivS.append(derivS)
-        if topBorder==0:#first occurence
-            if derivS <= -0.027:
-                topBorder = r + 8 #better if looking for local minimum, currently only adding fixed distortion
-        elif verLineHSV[r][0] < 0.84 and verLineHSV[r][0] > 0.15 and derivS >= 0.027 and bottomBorder==len(verLineHSV):#not red, first occurence
-            bottomBorder= r-1
-        
-    #plt.plot(maxderivS)
-    #plt.xlabel('X-Coordinate')
-    #plt.show() 
-    print((leftBorder,rightBorder, topBorder, bottomBorder))
-    return maxV[1], (leftBorder,rightBorder, topBorder, bottomBorder)
+    localMinimum = False
+    localMaximum = False
+    for r in range(topBorder, bottomBorder-2):
+        if topBorder == 0:#first occurence
+            if dS[r] <= -0.027:
+                localMinimum = True
+            if localMinimum and ddS[r] > 0: #wait till it rises again
+                topBorder = r
+        else:
+            if (bottomBorder == len(verLineHSV) #first occurence
+                and verLineHSV[r][0] < 0.84 and verLineHSV[r][0] > 0.15 #not red, 
+                and dS[r] >= 0.027
+            ):
+                localMaximum = True
+            if localMaximum and ddS[r] < 0:
+                bottomBorder= r
+    
+    #if no result was found, take the last
+    if localMaximum and bottomBorder == len(verLineHSV):
+        bottomBorder= r
+    
+    
+    return RectTupleClass(leftBorder,rightBorder, topBorder, bottomBorder)
 
 def rotate2Dvector(point, angle, origin=(0, 0)):
     cos_theta, sin_theta = math.cos(angle), math.sin(angle)
@@ -199,10 +213,10 @@ if __name__ == '__main__':
     
     #normalize
     minV = np.min(imgHSV[:,:,2])
-    imgHSV[:, :, 2]-=minV #minimum value at 0
+    imgHSV[:, :, 2] -= minV #minimum value at 0
 
     maxV = np.max(imgHSV[:,:,2])
-    imgHSV[:, :, 2]/=maxV #maximum value is 1
+    imgHSV[:, :, 2] /= maxV #maximum value is 1
     #averageV = imgHSV[:, :, 2].mean()
     #imgHSV[:, :, 2] *= averageGrayValue / averageV #scale that average is averageGrayValue
     correctedRGB= matplotlib.colors.hsv_to_rgb(imgHSV)
@@ -213,7 +227,7 @@ if __name__ == '__main__':
     #toimage(correctedRGB).show()#show segment
     pilRGB = Image.fromarray(np.uint8(correctedRGB*255), mode='RGB')#0-1 numpy array to uint8 pillow
     rotationAnchor = (segRange[5][1],segRange[5][0])
-    pilRGB = pilRGB.rotate(segRange[4],resample=Image.BILINEAR, center=rotationAnchor)
+    pilRGB = pilRGB.rotate(segRange[4], resample=Image.BILINEAR, center=rotationAnchor)
     #pilRGB.show()
     correctedRGB = np.asarray(pilRGB)
     
@@ -222,7 +236,7 @@ if __name__ == '__main__':
     #toimage(correctedRGB).show()#show segment
     
     #rgb = rgb.reshape(rgb.shape[0]*rgb.shape[1], rgb.shape[2])
-     #translate image by the difference of 
+    #translate image by the difference of 
     draw = ImageDraw.Draw(rgbOrigPIL)
     #draw image size reduction
     draw.rectangle(
@@ -239,44 +253,45 @@ if __name__ == '__main__':
     cornerSegment = rotate2Dvector(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)
     
     #draw things
-    segmentWidth = segRange[3]-segRange[2]
-    segmentHeight= segRange[1]-segRange[0]
+    segmentWidth = segRange[3] - segRange[2]
+    segmentHeight= segRange[1] - segRange[0]
     draw = ImageDraw.Draw(rgbOrigPIL)
     
     #draw segmentation
     draw.rectangle(
         (cornerSegment.x,
         cornerSegment.y ,
-        cornerSegment.x +segmentWidth,
-        cornerSegment.y +segmentHeight
+        cornerSegment.x + segmentWidth,
+        cornerSegment.y + segmentHeight
         ), outline="red", fill=None)
     
-    maxLine = findRectangle(correctedRGB)
+    whiteRect = findRectangle(correctedRGB)
+    print(whiteRect)
     #draw central line
-    draw.line(
-        (cornerSegment.x,
-        cornerSegment.y + maxLine[0],
-        cornerSegment.x + segmentWidth,
-        cornerSegment.y + maxLine[0])
-    )
+    #draw.line(
+    #    (cornerSegment.x,
+    #    cornerSegment.y + maxLine[0],
+    #    cornerSegment.x + segmentWidth,
+    #    cornerSegment.y + maxLine[0])
+    #)
     
     #draw borders of white block
     draw.line(
-        (cornerSegment.x,
-        cornerSegment.y + maxLine[1][2],
-        cornerSegment.x + segmentWidth,
-        cornerSegment.y + maxLine[1][2])
+        (cornerSegment.x + whiteRect.left,
+        cornerSegment.y + whiteRect.top,
+        cornerSegment.x + whiteRect.left + whiteRect.right,
+        cornerSegment.y + whiteRect.top)
     )
     draw.line(
-        (cornerSegment.x,
-        cornerSegment.y + maxLine[1][3],
-        cornerSegment.x + segmentWidth,
-        cornerSegment.y + maxLine[1][3])
+       (cornerSegment.x + whiteRect.left,
+        cornerSegment.y + whiteRect.bottom,
+        cornerSegment.x + whiteRect.left + whiteRect.right,
+        cornerSegment.y + whiteRect.bottom)
     )
     digits = []
-    stepSize = int((maxLine[1][1]-maxLine[1][0])/8)#right-left
-    lastX = maxLine[1][0]
-    for x in range(maxLine[1][0], maxLine[1][1], stepSize):
+    stepSize = int((whiteRect.right - whiteRect.left)/8)#right-left
+    lastX = whiteRect.left
+    for x in range(whiteRect.left, whiteRect.right, stepSize):
         draw.line(
             (cornerSegment.x + x,
             cornerSegment.y,
@@ -284,7 +299,7 @@ if __name__ == '__main__':
             cornerSegment.y + segmentHeight)
         )
         if x > maxLine[1][0]:
-            newDigit = correctedRGB[maxLine[1][2]:maxLine[1][3],lastX+4:x-2]#little bit of offset because of the border
+            newDigit = correctedRGB[mwhiteRect.top : whiteRect.bottom, lastX+4 : x-2]#little bit of offset because of the border
             digits.append(newDigit)
             toimage(newDigit).show()
             lastX = x
