@@ -2,7 +2,7 @@
 
 import numpy as np
 import scipy.ndimage as ndimage
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import matplotlib
 import math
 import sys
@@ -91,7 +91,7 @@ def findMaximumColor(imgHSV, colorRGB, errormarginH, minS):
  
 #performs some scans to find the line with the maximum derivative (edges)   
 def findRectangle(imageRGB):
-    imageRGB = scaleSpace(imageRGB,3.5)
+    imageRGB = scaleSpace(imageRGB,2.5)
     imageHSV = matplotlib.colors.rgb_to_hsv(imageRGB)
     #find line with highest sum of derivative
     maxV = None#maximum values of global maximum
@@ -107,34 +107,59 @@ def findRectangle(imageRGB):
             lastV = fx  
         
         #found new maximum 
-        if (maxV == None or sumderiv > maxV[0]):
-            maxV = (sumderiv, row, histo) 
+        if maxV == None or sumderiv > maxV[0]:
+            maxV = (sumderiv, row, histo) #sum of derivative of V, row, histogram of V
 
     
     if maxV == None:
         print("no central line found")
         return
-    #look for biggest change in this line of Hue    
-    lineInHSV = imageHSV[maxV[1],:]
+    #look for biggest change in this line of Saturation    
+    horLineHSV = imageHSV[maxV[1],:]
     maxderivS = []
-    lastS =lineInHSV[0][1]
-    for c in range(1,len(lineInHSV)):
-        derivS = lineInHSV[c][1] - lastS
-        lastS = lineInHSV[c][1]
+    lastS = horLineHSV[0][1]
+    leftBorder = 0
+    rightBorder = len(horLineHSV)
+    #scan horizontally
+    for c in range(leftBorder+1,rightBorder):
+        derivS = horLineHSV[c][1] - lastS
+        lastS = horLineHSV[c][1]
         maxderivS.append(derivS)
+        if leftBorder==0:#first occurence
+            if derivS <= -0.027:
+                leftBorder = c + 8 #better if looking for local minimum, currently only adding fixed distortion
+        elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and derivS >= 0.027 and rightBorder==len(horLineHSV):#not red, first occurence
+            rightBorder= c + 5
+            
+    #scan vertically
+    verLineHSV = imageHSV[:,int(len(horLineHSV)/2)]#middle
+    maxderivS = []
+    lastS = verLineHSV[0][1]#sat of
+    print("LastS"+str(lastS))
+    topBorder = 0
+    bottomBorder = len(verLineHSV)
+    for r in range(topBorder+1, bottomBorder):
+        derivS = verLineHSV[r][1] - lastS
+        lastS = verLineHSV[r][1]
+        maxderivS.append(derivS)
+        if topBorder==0:#first occurence
+            if derivS <= -0.027:
+                topBorder = r + 8 #better if looking for local minimum, currently only adding fixed distortion
+        elif verLineHSV[r][0] < 0.84 and verLineHSV[r][0] > 0.15 and derivS >= 0.027 and bottomBorder==len(verLineHSV):#not red, first occurence
+            bottomBorder= r-1
         
-    plt.plot(maxderivS)
-    plt.xlabel('X-Coordinate')
-    plt.show() 
-        
-    return maxV[1],maxderivS
+    #plt.plot(maxderivS)
+    #plt.xlabel('X-Coordinate')
+    #plt.show() 
+    print((leftBorder,rightBorder, topBorder, bottomBorder))
+    return maxV[1], (leftBorder,rightBorder, topBorder, bottomBorder)
 
 def rotate2Dvector(point, angle, origin=(0, 0)):
     cos_theta, sin_theta = math.cos(angle), math.sin(angle)
     x, y = point[0] - origin[0], point[1] - origin[1]#translate
     Point = namedtuple('Point', 'x y')
-    return Point(x * cos_theta - y * sin_theta + x0,
-            x * sin_theta + y * cos_theta + y0)
+    return Point(x * cos_theta - y * sin_theta + origin[0],
+            x * sin_theta + y * cos_theta + origin[1])
 
     
 if __name__ == '__main__':
@@ -181,18 +206,14 @@ if __name__ == '__main__':
     #averageV = imgHSV[:, :, 2].mean()
     #imgHSV[:, :, 2] *= averageGrayValue / averageV #scale that average is averageGrayValue
     correctedRGB= matplotlib.colors.hsv_to_rgb(imgHSV)
-
-    #pilImage = Image.fromarray(correctedRGB, mode='RGB')
-   # pilImage.show()
-    #toimage(correctedRGB).show()
-
     
     #get segmentation cut
     segRange = segmentation(correctedRGB) 
     print("Segmentation: "+str(segRange))
     #toimage(correctedRGB).show()#show segment
     pilRGB = Image.fromarray(np.uint8(correctedRGB*255), mode='RGB')#0-1 numpy array to uint8 pillow
-    pilRGB = pilRGB.rotate(segRange[4],resample=Image.BILINEAR,center=segRange[5])
+    rotationAnchor = (segRange[5][1],segRange[5][0])
+    pilRGB = pilRGB.rotate(segRange[4],resample=Image.BILINEAR, center=rotationAnchor)
     #pilRGB.show()
     correctedRGB = np.asarray(pilRGB)
     
@@ -211,13 +232,13 @@ if __name__ == '__main__':
         rgbOrig.shape[0]*(1-reductionHeight/2)
         ), outline="blue", fill=None)
    
-    #rotate point around anchor
-    rotationAnchor = (rgbOrig.shape[1]*reductionWidth/2+segRange[5][0], rgbOrig.shape[0]*reductionHeight/2+segRange[5][0])
+    #rotate point around anchor, bug: reduction is shorter because of rotation, current implementation does not shrink it
+    rotationAnchor = (rgbOrig.shape[1]*reductionWidth/2 + rotationAnchor[0], rgbOrig.shape[0]*reductionHeight/2 +rotationAnchor[1])#from r,c to x,y
     rgbOrigPIL = rgbOrigPIL.rotate(segRange[4], resample=Image.BILINEAR, center=rotationAnchor)
-    
-    # find rel. translation = pos*rotation - pos, where pos is seqRange[0] and [1]
-    cornerAbsolute = (rgbOrig.shape[1]*reductionWidth/2+segRange[2], rgbOrig.shape[0]*reductionHeight/2+segRange[0])
+    cornerAbsolute = (rgbOrig.shape[1]*reductionWidth/2 + segRange[2], rgbOrig.shape[0]*reductionHeight/2+ segRange[0])
     cornerSegment = rotate2Dvector(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)
+    
+    #draw things
     segmentWidth = segRange[3]-segRange[2]
     segmentHeight= segRange[1]-segRange[0]
     draw = ImageDraw.Draw(rgbOrigPIL)
@@ -239,14 +260,57 @@ if __name__ == '__main__':
         cornerSegment.y + maxLine[0])
     )
     
-    #draw border of white block
-    for i in range(1,len(maxLine[1])):
+    #draw borders of white block
+    draw.line(
+        (cornerSegment.x,
+        cornerSegment.y + maxLine[1][2],
+        cornerSegment.x + segmentWidth,
+        cornerSegment.y + maxLine[1][2])
+    )
+    draw.line(
+        (cornerSegment.x,
+        cornerSegment.y + maxLine[1][3],
+        cornerSegment.x + segmentWidth,
+        cornerSegment.y + maxLine[1][3])
+    )
+    digits = []
+    stepSize = int((maxLine[1][1]-maxLine[1][0])/8)#right-left
+    lastX = maxLine[1][0]
+    for x in range(maxLine[1][0], maxLine[1][1], stepSize):
         draw.line(
-            (cornerSegment.x + maxLine[1][i],
+            (cornerSegment.x + x,
             cornerSegment.y,
-            cornerSegment.x + maxLine[1][i],
+            cornerSegment.x + x,
             cornerSegment.y + segmentHeight)
         )
+        if x > maxLine[1][0]:
+            newDigit = correctedRGB[maxLine[1][2]:maxLine[1][3],lastX+4:x-2]#little bit of offset because of the border
+            digits.append(newDigit)
+            toimage(newDigit).show()
+            lastX = x
+        
+    #show marked picture
     toimage(rgbOrigPIL).show()
+    
+    #ocr
+    #import tesserocr
+    #from tesserocr import PyTessBaseAPI, PSM
+    # with PyTessBaseAPI(psm=PSM.SINGLE_CHAR) as tapi:
+    import pytesseract
+    digitValue = 10000000
+    asvalue=0
+    for digit in digits:
+        #digit = Image.fromarray(np.uint8(digit*255), mode='RGB')#0-1 numpy array to uint8 pillow
+        digitasNumber = pytesseract.image_to_string(digit, config='-psm 10 digits')
+        print(digitasNumber)
+        if digitasNumber=="":
+            digitasNumber=0
+        else:
+            digitasNumber = int(digitasNumber)
+        asvalue += digitasNumber*digitValue
+        digitValue = int(digitValue/10)#numerical stability
+    asvalue *= 0.001
+    print(asvalue)
+        
     
     #toimage(rgb).show()
