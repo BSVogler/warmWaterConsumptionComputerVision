@@ -144,12 +144,12 @@ def findRectangle(imageRGB):
     for c in range(leftBorder,rightBorder-1):
         if leftBorder==0:#first occurence is left border
             if dS[c] <= -0.027:
-                leftBorder = c + 8 #better if looking for local minimum, currently only adding fixed distortion
+                leftBorder = c + 12 #better if looking for local minimum, currently only adding fixed distortion
         elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and dS[c] >= 0.027 and horLineHSV[c][1]>0.2:#not red and is coloful
             print("H: "+str(horLineHSV[c][0]))
             print("dS: "+str(dS[c]))
             print("S: "+str(horLineHSV[c][1]))
-            rightBorder= c -3
+            rightBorder= c-1
             break#first occurence
             
 
@@ -182,8 +182,8 @@ def findRectangle(imageRGB):
         bottomBorder= r
     
     #tmp fix
-    topBorder += 7
-    bottomBorder -=17
+    topBorder += 9
+    bottomBorder -= 19
     
     return RectTupleClass(leftBorder,rightBorder, topBorder, bottomBorder)
 
@@ -206,7 +206,7 @@ def ocr(digitsRGB):
         for r in range(digitRGB.shape[0]):
             for c in range(digitRGB.shape[1]):
                 if digitValue>100:
-                    if np.sum(digitRGB[r][c][:]) > 300:
+                    if np.sum(digitRGB[r][c][:]) > 310:
                         digitBinary[r][c] = 255
                 else:
                     digitHSV= matplotlib.colors.rgb_to_hsv(digitRGB)
@@ -370,5 +370,5 @@ if __name__ == '__main__':
     
     digits = segmentDigits(whiteRect,correctedRGB, draw)
     #show marked picture
-    toimage(rgbOrigPIL).show()
+    #toimage(rgbOrigPIL).show()
     ocr(digits)        
