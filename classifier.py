@@ -345,11 +345,12 @@ if __name__ == '__main__':
         cornerSegment.x + whiteRect.left + whiteRect.right,
         cornerSegment.y + whiteRect.bottom)
     )
+    #show marked picture
+    toimage(rgbOrigPIL).show()
     
     segmentDigits(whiteRect,correctedRGB, draw)
         
-    #show marked picture
-    toimage(rgbOrigPIL).show()
+
     
     ocr(digits)        
     
