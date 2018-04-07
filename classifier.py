@@ -194,7 +194,29 @@ def orc(digits):
         digitValue = int(digitValue/10)#numerical stability
     asValue *= 0.001
     print(asValue)
-    
+   
+#segment digits from rectangle 
+def segmentDigits(whiteRect, fullRGBimage, draw):
+    digits = []
+    numberOfDigits = 8
+    width = whiteRect.right - whiteRect.left
+    if width < 5:
+        print("Width of segment is too small. Segmentation failed.")
+    stepSize = int(width / numberOfDigits)
+    xLeftBorder = whiteRect.left
+    for x in range(whiteRect.left, whiteRect.right, stepSize):
+        draw.line(
+            (cornerSegment.x + x,
+            cornerSegment.y,
+            cornerSegment.x + x,
+            cornerSegment.y + segmentHeight)
+        )
+        #if x > maxLine[1][0]:
+        newDigit = fullRGBimage[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-2]#little bit of offset because of the border
+        digits.append(newDigit)
+        toimage(newDigit).show()
+        xLeftBorder = x
+        
 if __name__ == '__main__':
     input = "./images/image.jpg"
     if len(sys.argv)>1:
@@ -308,26 +330,7 @@ if __name__ == '__main__':
         cornerSegment.y + whiteRect.bottom)
     )
     
-    #segment digits from rectangle
-    digits = []
-    numberOfDigits = 8
-    width = whiteRect.right - whiteRect.left
-    if width < 5:
-        print("Width of segment is too small. Segmentation failed.")
-    stepSize = int(width / numberOfDigits)
-    xLeftBorder = whiteRect.left
-    for x in range(whiteRect.left, whiteRect.right, stepSize):
-        draw.line(
-            (cornerSegment.x + x,
-            cornerSegment.y,
-            cornerSegment.x + x,
-            cornerSegment.y + segmentHeight)
-        )
-        if x > maxLine[1][0]:
-            newDigit = correctedRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-2]#little bit of offset because of the border
-            digits.append(newDigit)
-            toimage(newDigit).show()
-            xLeftBorder = x
+    segmentDigits(whiteRect,correctedRGB, draw)
         
     #show marked picture
     toimage(rgbOrigPIL).show()
