@@ -305,8 +305,9 @@ if __name__ == '__main__':
     #rotate point around anchor, bug: reduction is shorter because of rotation, current implementation does not shrink it
     rotationAnchor = (rgbOrig.shape[1]*reductionWidth/2 + rotationAnchor[0], rgbOrig.shape[0]*reductionHeight/2 +rotationAnchor[1])#from r,c to x,y
     rgbOrigPIL = rgbOrigPIL.rotate(segRange[4], resample=Image.BILINEAR, center=rotationAnchor)
+    #top or bottom left corner relative to origninal image
     cornerAbsolute = (rgbOrig.shape[1]*reductionWidth/2 + segRange[2], rgbOrig.shape[0]*reductionHeight/2+ segRange[0])
-    cornerSegment = rotate2Dvector(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)
+    cornerSegment = rotate2Dvector(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)#position after rotation?
     
     #draw things
     segmentWidth = segRange[3] - segRange[2]
@@ -321,7 +322,7 @@ if __name__ == '__main__':
         cornerSegment.y + segmentHeight
         ), outline="red", fill=None)
     
-    whiteRect = findRectangle(correctedRGB)
+    whiteRect = findRectangle(correctedRGB)#find rectangle in this segment
     print(whiteRect)
     #draw central line
     #draw.line(
@@ -344,13 +345,9 @@ if __name__ == '__main__':
         cornerSegment.x + whiteRect.left + whiteRect.right,
         cornerSegment.y + whiteRect.bottom)
     )
-    #show marked picture
-    toimage(rgbOrigPIL).show()
-    
-    segmentDigits(whiteRect,correctedRGB, draw)
-        
 
     
+    digits = segmentDigits(whiteRect,correctedRGB, draw)
+    #show marked picture
+    toimage(rgbOrigPIL).show()
     ocr(digits)        
-    
-    #toimage(rgb).show()
