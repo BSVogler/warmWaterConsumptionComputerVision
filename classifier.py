@@ -204,8 +204,8 @@ if __name__ == '__main__':
     print("Input dimension: "+str(rgbOrig.shape))
     
     #use only a cut of the original pucture
-    reductionWidth=0.48
-    reductionHeight=0.1
+    reductionWidth = 0.48
+    reductionHeight = 0.1
     print(str(reductionWidth*100)+"%x"+str(reductionHeight*100)+"% image size reduction")
     rgb = np.array(rgbOrig[int(rgbOrig.shape[0]*reductionHeight/2):int(rgbOrig.shape[0]*(1-reductionHeight/2)), int(rgbOrig.shape[1]*reductionWidth/2):int(rgbOrig.shape[1]*(1-reductionWidth/2)),:], copy=True) 
     print("Scaled dimension: "+str(rgb.shape))
@@ -293,7 +293,7 @@ if __name__ == '__main__':
     #    cornerSegment.y + maxLine[0])
     #)
     
-    #draw borders of white block
+    #draw borders of white segmentation block
     draw.line(
         (cornerSegment.x + whiteRect.left,
         cornerSegment.y + whiteRect.top,
@@ -306,9 +306,15 @@ if __name__ == '__main__':
         cornerSegment.x + whiteRect.left + whiteRect.right,
         cornerSegment.y + whiteRect.bottom)
     )
+    
+    #segment digits from rectangle
     digits = []
-    stepSize = int((whiteRect.right - whiteRect.left)/8)#right-left
-    lastX = whiteRect.left
+    numberOfDigits = 8
+    width = whiteRect.right - whiteRect.left
+    if width < 5:
+        print("Width of segment is too small. Segmentation failed.")
+    stepSize = int(width / numberOfDigits)
+    xLeftBorder = whiteRect.left
     for x in range(whiteRect.left, whiteRect.right, stepSize):
         draw.line(
             (cornerSegment.x + x,
@@ -317,10 +323,10 @@ if __name__ == '__main__':
             cornerSegment.y + segmentHeight)
         )
         if x > maxLine[1][0]:
-            newDigit = correctedRGB[mwhiteRect.top : whiteRect.bottom, lastX+4 : x-2]#little bit of offset because of the border
+            newDigit = correctedRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-2]#little bit of offset because of the border
             digits.append(newDigit)
             toimage(newDigit).show()
-            lastX = x
+            xLeftBorder = x
         
     #show marked picture
     toimage(rgbOrigPIL).show()
