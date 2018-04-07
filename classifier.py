@@ -21,7 +21,6 @@ def scaleSpace(image, sigma):
 '''return rowTop, rowBottom, columnLeft, columnRight, angle, anchorpoint'''
 def segmentation(imgRGB):
     print("Segmentation")
-    imgRGB=imgRGB[:-20,:,:]#ignore border line
     scaledRGB = scaleSpace(imgRGB,10)
     #pilImage = Image.fromarray(np.uint8(scaledRGB), mode='RGB')
     #pilImage.show()
@@ -37,10 +36,51 @@ def segmentation(imgRGB):
         print("could not find markers")
         return
       
-    angle = math.atan((peak2[0]-peak1[0])/(peak2[1]-peak1[1]))*180/math.pi 
+    #toimage(imgRGB[peak2[0]-10:peak1[0]-5, peak1[1]-30: peak2[1]-25]).show()
+    
+    angle = 0
+    #above peak 1 should be an edge separating the blue and white surface, this leads to a higher accuracy of the angle
+    first = None
+    last = None
+    blue = matplotlib.colors.rgb_to_hsv(np.array([0.06*2*averageGrayValue,0.24*2*averageGrayValue,0.4*2*averageGrayValue]))
+    i = 0
+    edge = np.zeros((100,2))
+    for c in range(peak1[1]-30, peak2[1]-25, 10):
+        coloumnHSV = matplotlib.colors.rgb_to_hsv(imgRGB[peak2[0]-10:peak1[0]-5,c])
+        
+        r = peak1[0]
+        dSColoumn = []
+        for r in range(1,coloumnHSV.shape[0]):#from top to bottom
+            dS = coloumnHSV[r][1]-coloumnHSV[r-1][1]
+            dSColoumn.append(dS)
+            if dS < -0.15 and abs(coloumnHSV[r][0]-blue[0]) < 0.3: #edge detection
+                last = (r,c)
+                edge[i][0] = r
+                edge[i][1] = c
+                if first is None:
+                    first = (r,c)
+                else:
+                    angle += math.atan((last[0]-first[0])/(last[1]-first[1]))*180/math.pi #using blue/white edge
+                    i += 1
+                break
+        #print(dSColoumn)
+        #plt.plot(dSColoumn)
+        #plt.plot(coloumnHSV[:,2])
+    print(edge)
+    
+    plt.scatter(edge[:,1],edge[:,0])
+    plt.xlabel('X-Coordinate')
+    plt.show()
+    
+    angle /= i
+    if first is None or last is None:
+        print("could not detect blue-white edge")
+        
+    #angle = math.atan((peak2[0]-peak1[0])/(peak2[1]-peak1[1]))*180/math.pi #using color peaks
+    
     hypo= int(math.sqrt((peak2[0]-peak1[0])*(peak2[0]-peak1[0]) + (peak2[1]-peak1[1])*(peak2[1]-peak1[1])))+40
-           
-    return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]-10+hypo, angle+5, peak1)
+
+    return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]-10+hypo, angle, peak1)
 
 
 #find peak position in image using scale space
@@ -180,10 +220,6 @@ def findRectangle(imageRGB):
     #if no result was found, take the last
     if localMaximum and bottomBorder == len(verLineHSV):
         bottomBorder= r
-    
-    #tmp fix
-    topBorder += 9
-    bottomBorder -= 19
     
     return RectTupleClass(leftBorder,rightBorder, topBorder, bottomBorder)
 
@@ -370,5 +406,5 @@ if __name__ == '__main__':
     
     digits = segmentDigits(whiteRect,correctedRGB, draw)
     #show marked picture
-    #toimage(rgbOrigPIL).show()
+    toimage(rgbOrigPIL).show()
     ocr(digits)        
