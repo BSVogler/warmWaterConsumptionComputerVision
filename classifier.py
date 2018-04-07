@@ -198,7 +198,7 @@ def rotate2Dvector(point, angle, origin=(0, 0)):
 #todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
 def ocr(digitsRGB):
     import pytesseract
-    digitValue = int(10000000) # value of the next digit
+    digitValue = int(100000) # value of the next digit
     asValue = int(0) #resulting value
     
     for digitRGB in digitsRGB:
@@ -235,9 +235,9 @@ def segmentDigits(whiteRect, segmentRGB, draw):
     if width < 5:
         print("Width of segment is too small. Segmentation failed.")
     stepSize = int(width / numberOfDigits)
-    xLeftBorder = whiteRect.left
+    xLeftBorder = whiteRect.left+stepSize*2
     
-    toimage(segmentRGB).show()
+    toimage(segmentRGB[whiteRect.top : whiteRect.bottom, whiteRect.left : whiteRect.right]).show()
     for x in range(whiteRect.left, whiteRect.right, stepSize):
         draw.line(
             (cornerSegment.x + x,
@@ -245,8 +245,8 @@ def segmentDigits(whiteRect, segmentRGB, draw):
             cornerSegment.x + x,
             cornerSegment.y + segmentHeight)
         )
-        if x > xLeftBorder:#skip first
-            newDigit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-2]#little bit of offset because of the border
+        if x > whiteRect.left+stepSize*2:#skip first line and first two digit
+            newDigit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-4]#little bit of offset because of the border
             digits.append(newDigit)
             #toimage(newDigit).show()
             xLeftBorder = x
