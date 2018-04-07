@@ -60,7 +60,7 @@ def findMaximumColor(imgHSV, colorRGB, errormarginH, minS):
 
     #calculate histograms by projecting rows and coloumns
     bucketReduction = 30
-    numBucketHeight = nt(imgHSV.shape[0]/bucketReduction)+1
+    numBucketHeight = int(imgHSV.shape[0]/bucketReduction)+1
     sumtotal=0
     rdir = np.zeros(numBucketHeight)
     for r in range(imgHSV.shape[0]):
