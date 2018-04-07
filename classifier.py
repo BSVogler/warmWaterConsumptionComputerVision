@@ -193,25 +193,39 @@ def rotate2Dvector(point, angle, origin=(0, 0)):
 
 #performs ocr using tesseract, input is list of numpy images
 #todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
-def orc(digits):
+def ocr(digitsRGB):
     import pytesseract
-    digitValue = 10000000 # value of the next digit
-    asValue = 0 #resulting value
-    for digit in digits:
-        #digit = Image.fromarray(np.uint8(digit*255), mode='RGB')#0-1 numpy array to uint8 pillow
-        digitasNumber = pytesseract.image_to_string(digit, config='-psm 10 digits')
+    digitValue = int(10000000) # value of the next digit
+    asValue = int(0) #resulting value
+    
+    for digitRGB in digitsRGB:
+        digitBinary = np.zeros([digitRGB.shape[0],digitRGB.shape[1]])
+        for r in range(digitRGB.shape[0]):
+            for c in range(digitRGB.shape[1]):
+                if digitValue>100:
+                    if np.sum(digitRGB[r][c][:]) > 300:
+                        digitBinary[r][c] = 255
+                else:
+                    digitHSV= matplotlib.colors.rgb_to_hsv(digitRGB)
+                    if digitHSV[r][c][1] < 0.2:
+                        digitBinary[r][c] = 255
+                #digitBinary[r][c] = np.sum(digitRGB[r][c][:])/3
+        Image.fromarray(np.uint8(digitBinary), 'L').show()
+        #toimage(digitBinary).show()            
+                    
+        digitasNumber = pytesseract.image_to_string(digitBinary, config='-psm 10 -c tessedit_char_whitelist=0123456789')
         print(digitasNumber)
         if digitasNumber == "":
             digitasNumber = 0
         else:
             digitasNumber = int(digitasNumber)
-        asValue += digitasNumber*digitValue
-        digitValue = int(digitValue/10)#numerical stability
+        asValue += int(digitasNumber*digitValue)
+        digitValue = int(digitValue/10)#using int for numerical stability
     asValue *= 0.001
     print(asValue)
    
 #segment digits from rectangle 
-def segmentDigits(whiteRect, fullRGBimage, draw):
+def segmentDigits(whiteRect, segmentRGB, draw):
     digits = []
     numberOfDigits = 8
     width = whiteRect.right - whiteRect.left
@@ -219,6 +233,8 @@ def segmentDigits(whiteRect, fullRGBimage, draw):
         print("Width of segment is too small. Segmentation failed.")
     stepSize = int(width / numberOfDigits)
     xLeftBorder = whiteRect.left
+    
+    toimage(segmentRGB).show()
     for x in range(whiteRect.left, whiteRect.right, stepSize):
         draw.line(
             (cornerSegment.x + x,
@@ -226,12 +242,14 @@ def segmentDigits(whiteRect, fullRGBimage, draw):
             cornerSegment.x + x,
             cornerSegment.y + segmentHeight)
         )
-        #if x > maxLine[1][0]:
-        newDigit = fullRGBimage[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-2]#little bit of offset because of the border
-        digits.append(newDigit)
-        toimage(newDigit).show()
-        xLeftBorder = x
+        if x > xLeftBorder:#skip first
+            newDigit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-2]#little bit of offset because of the border
+            digits.append(newDigit)
+            #toimage(newDigit).show()
+            xLeftBorder = x
         
+    return digits
+    
 if __name__ == '__main__':
     input = "./images/image.jpg"
     if len(sys.argv)>1:
@@ -285,7 +303,7 @@ if __name__ == '__main__':
     rotationAnchor = (segRange[5][1],segRange[5][0])
     pilRGB = pilRGB.rotate(segRange[4], resample=Image.BILINEAR, center=rotationAnchor)
     #pilRGB.show()
-    correctedRGB = np.asarray(pilRGB)
+    correctedRGB = np.asarray(pilRGB)#pillow to numpy
     
     #rgb = ndimage.interpolation.rotate(correctedRGB, segRange[4], reshape=False)#rotate using scipy ndimage            
     correctedRGB = correctedRGB[segRange[0]:segRange[1], segRange[2]:segRange[3], :]
