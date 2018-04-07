@@ -71,23 +71,23 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
 
     #rows
     rdir = np.apply_over_axes(np.sum, validPixels, [1]).ravel()
-    numBucketHeight = int(imgHSV.shape[0]/bucketReduction)+1
+    rdirReduced = np.zeros([int(imgHSV.shape[0]/bucketReduction)+1])
     for r in range(imgHSV.shape[0]):
-        rdir[int(r/bucketReduction)] += rdir[r]
+        rdirReduced[int(r/bucketReduction)] += rdir[r]
 
     #coloums  
     cdir = np.apply_over_axes(np.sum, validPixels, [0]).ravel()
-    numBucketWidth = int(imgHSV.shape[1]/bucketReduction)+1  
+    cdirReduced = np.zeros([int(imgHSV.shape[1]/bucketReduction)+1])
     for c in range(imgHSV.shape[1]):
-        cdir[int(c/bucketReduction)] += cdir[c]
+        cdirReduced[int(c/bucketReduction)] += cdir[c]
         
-    plt.plot(rdir)
-    plt.plot(cdir)
-    plt.xlabel('X-Coordinate')
-    plt.grid(True)
-    plt.show()
+    # plt.plot(rdir)
+ #    plt.plot(cdir)
+ #    plt.xlabel('X-Coordinate')
+ #    plt.grid(True)
+ #    plt.show()
          
-    if np.sum(rdir)+np.sum(cdir) ==0:
+    if np.sum(rdirReduced)+np.sum(cdirReduced) ==0:
         print("did not find a peak")
         return None
       
@@ -96,8 +96,8 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
     #for r in range(rdir.shape[0]):
     #rdir[x]
        
-    rowMax = int(np.argmax(rdir) * bucketReduction)
-    columnMax = int(np.argmax(cdir) * bucketReduction)
+    rowMax = int(np.argmax(rdirReduced) * bucketReduction)
+    columnMax = int(np.argmax(cdirReduced) * bucketReduction)
     print("Maimumx r,c:"+str((rowMax, columnMax)))
     return (rowMax, columnMax)
  
