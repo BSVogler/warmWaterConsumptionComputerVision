@@ -64,7 +64,7 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
                imgHSV[y][x][0] = searchHSV[0]
                imgHSV[y][x][1] = 1
                imgHSV[y][x][2] = 0.5
-    toimage(matplotlib.colors.hsv_to_rgb(imgHSV)).show()         
+    #toimage(matplotlib.colors.hsv_to_rgb(imgHSV)).show()         
 
     #calculate histograms of the valid pixels by projecting rows and coloumns
     bucketReduction = 30
@@ -96,11 +96,11 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
         #for r in range(rdir.shape[0]):
         #rdir[x]
        
-    plt.plot(rdir)
-    plt.plot(cdir)
-    plt.xlabel('X-Coordinate')
-    plt.grid(True)
-    plt.show()
+    #plt.plot(rdir)
+    #plt.plot(cdir)
+    #plt.xlabel('X-Coordinate')
+    #plt.grid(True)
+    #plt.show()
     
     rowMax = int(np.argmax(rdir) * bucketReduction)
     columnMax = int(np.argmax(cdir) * bucketReduction)
