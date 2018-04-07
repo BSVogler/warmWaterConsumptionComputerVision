@@ -43,49 +43,65 @@ def segmentation(imgRGB):
     return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]-10+hypo, angle+5, peak1)
 
 
-def findMaximumColor(imgHSV, colorRGB, errormarginH, minS):
-    print("calculating histogram to find the color peak pos" +str(colorRGB))
-    colorHSV = matplotlib.colors.rgb_to_hsv(colorRGB);
-    #search for valid pixels
-    foundTarget = np.zeros((imgHSV.shape[0], imgHSV.shape[1]), dtype=bool)
-    for x in range(imgHSV.shape[0]):
-        for y in range(imgHSV.shape[1]):
+#find peak position in image using scale space
+def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
+    print("calculating histogram to find the color peak pos " +str(searchRGB))
+    searchHSV = matplotlib.colors.rgb_to_hsv(searchRGB);
+    
+    #search for valid pixels (pixels matching search criteria)
+    validPixels = np.zeros((imgHSV.shape[0], imgHSV.shape[1]), dtype=bool)
+    startY = 0
+    # specialRuel for more robustness and less generalization
+    # there must be some non-target color above
+    if specialRule:
+        startY = int(0.2*imgHSV.shape[1]) #cut 20% percent from top
+    for y in range(startY,imgHSV.shape[0]):
+        for x in range(imgHSV.shape[1]):
             #if abs(scaledHSV[x][y][0]-yellowAreaHSV[0]) < 0.07 and scaledHSV[x][y][1] > 0.3 and scaledHSV[x][y][2]<0.9 and scaledHSV[x][y][2]>0.3:
-            if abs(imgHSV[x][y][0]-colorHSV[0]) < errormarginH and imgHSV[x][y][1] > minS and imgHSV[x][y][2]>0.18*2*averageGrayValue:
-               foundTarget[x][y] = True
-               imgHSV[x][y][0] = colorHSV[0]
-               imgHSV[x][y][1] = 1
-               imgHSV[x][y][2] = 0.5
-    #toimage(matplotlib.colors.hsv_to_rgb(imgHSV)).show()         
+            if abs(imgHSV[y][x][0]-searchHSV[0]) < errormarginH and imgHSV[y][x][1] > minS and imgHSV[y][x][2]>0.18*2*averageGrayValue:
+               validPixels[y][x] = True
+               #mark for visualization
+               imgHSV[y][x][0] = searchHSV[0]
+               imgHSV[y][x][1] = 1
+               imgHSV[y][x][2] = 0.5
+    toimage(matplotlib.colors.hsv_to_rgb(imgHSV)).show()         
 
-    #calculate histograms by projecting rows and coloumns
+    #calculate histograms of the valid pixels by projecting rows and coloumns
     bucketReduction = 30
-    numBucketHeight = int(imgHSV.shape[0]/bucketReduction)+1
     sumtotal=0
+
+    #rows
+    numBucketHeight = int(imgHSV.shape[0]/bucketReduction)+1
     rdir = np.zeros(numBucketHeight)
     for r in range(imgHSV.shape[0]):
-        lastSum = np.sum(foundTarget[r])
+        lastSum = np.sum(validPixels[r])
         sumtotal += lastSum
         rdir[int(r/bucketReduction)] += lastSum
     
+    
+    #coloums
     numBucketWidth= int(imgHSV.shape[1]/bucketReduction)+1
     cdir = np.zeros(numBucketWidth)
     for c in range(imgHSV.shape[1]):
-        lastSum = np.sum(foundTarget[:,c])
+        lastSum = np.sum(validPixels[:,c])
         sumtotal += lastSum
         cdir[int(c/bucketReduction)] += lastSum
            
     if sumtotal==0:
         print("did not find a peak")
         return None
-    '''     
+      
+        #special rule
+        #find low before max, but what defines the low?
+        #for r in range(rdir.shape[0]):
+        #rdir[x]
+       
     plt.plot(rdir)
     plt.plot(cdir)
     plt.xlabel('X-Coordinate')
     plt.grid(True)
     plt.show()
-    '''
-
+    
     rowMax = int(np.argmax(rdir) * bucketReduction)
     columnMax = int(np.argmax(cdir) * bucketReduction)
     print("Maimumx r,c:"+str((rowMax, columnMax)))
