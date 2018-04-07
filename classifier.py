@@ -68,40 +68,34 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
 
     #calculate histograms of the valid pixels by projecting rows and coloumns
     bucketReduction = 30
-    sumtotal=0
 
     #rows
+    rdir = np.apply_over_axes(np.sum, validPixels, [1]).ravel()
     numBucketHeight = int(imgHSV.shape[0]/bucketReduction)+1
-    rdir = np.zeros(numBucketHeight)
     for r in range(imgHSV.shape[0]):
-        lastSum = np.sum(validPixels[r])
-        sumtotal += lastSum
-        rdir[int(r/bucketReduction)] += lastSum
-    
-    
-    #coloums
-    numBucketWidth= int(imgHSV.shape[1]/bucketReduction)+1
-    cdir = np.zeros(numBucketWidth)
+        rdir[int(r/bucketReduction)] += rdir[r]
+
+    #coloums  
+    cdir = np.apply_over_axes(np.sum, validPixels, [0]).ravel()
+    numBucketWidth = int(imgHSV.shape[1]/bucketReduction)+1  
     for c in range(imgHSV.shape[1]):
-        lastSum = np.sum(validPixels[:,c])
-        sumtotal += lastSum
-        cdir[int(c/bucketReduction)] += lastSum
-           
-    if sumtotal==0:
+        cdir[int(c/bucketReduction)] += cdir[c]
+        
+    plt.plot(rdir)
+    plt.plot(cdir)
+    plt.xlabel('X-Coordinate')
+    plt.grid(True)
+    plt.show()
+         
+    if np.sum(rdir)+np.sum(cdir) ==0:
         print("did not find a peak")
         return None
       
-        #special rule
-        #find low before max, but what defines the low?
-        #for r in range(rdir.shape[0]):
-        #rdir[x]
+    #special rule
+    #find low before max, but what defines the low?
+    #for r in range(rdir.shape[0]):
+    #rdir[x]
        
-    #plt.plot(rdir)
-    #plt.plot(cdir)
-    #plt.xlabel('X-Coordinate')
-    #plt.grid(True)
-    #plt.show()
-    
     rowMax = int(np.argmax(rdir) * bucketReduction)
     columnMax = int(np.argmax(cdir) * bucketReduction)
     print("Maimumx r,c:"+str((rowMax, columnMax)))
