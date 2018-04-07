@@ -175,6 +175,24 @@ def rotate2Dvector(point, angle, origin=(0, 0)):
     return Point(x * cos_theta - y * sin_theta + origin[0],
             x * sin_theta + y * cos_theta + origin[1])
 
+#performs ocr using tesseract, input is list of numpy images
+#todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
+def orc(digits):
+    import pytesseract
+    digitValue = 10000000 # value of the next digit
+    asValue = 0 #resulting value
+    for digit in digits:
+        #digit = Image.fromarray(np.uint8(digit*255), mode='RGB')#0-1 numpy array to uint8 pillow
+        digitasNumber = pytesseract.image_to_string(digit, config='-psm 10 digits')
+        print(digitasNumber)
+        if digitasNumber == "":
+            digitasNumber = 0
+        else:
+            digitasNumber = int(digitasNumber)
+        asValue += digitasNumber*digitValue
+        digitValue = int(digitValue/10)#numerical stability
+    asValue *= 0.001
+    print(asValue)
     
 if __name__ == '__main__':
     input = "./images/image.jpg"
@@ -307,25 +325,6 @@ if __name__ == '__main__':
     #show marked picture
     toimage(rgbOrigPIL).show()
     
-    #ocr
-    #import tesserocr
-    #from tesserocr import PyTessBaseAPI, PSM
-    # with PyTessBaseAPI(psm=PSM.SINGLE_CHAR) as tapi:
-    import pytesseract
-    digitValue = 10000000
-    asvalue=0
-    for digit in digits:
-        #digit = Image.fromarray(np.uint8(digit*255), mode='RGB')#0-1 numpy array to uint8 pillow
-        digitasNumber = pytesseract.image_to_string(digit, config='-psm 10 digits')
-        print(digitasNumber)
-        if digitasNumber=="":
-            digitasNumber=0
-        else:
-            digitasNumber = int(digitasNumber)
-        asvalue += digitasNumber*digitValue
-        digitValue = int(digitValue/10)#numerical stability
-    asvalue *= 0.001
-    print(asvalue)
-        
+    ocr(digits)        
     
     #toimage(rgb).show()
