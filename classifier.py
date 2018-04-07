@@ -133,19 +133,24 @@ def findRectangle(imageRGB):
     horLineHSV = imageHSV[maxV[1],:]
     dS = np.diff(horLineHSV[:,1])
     
-    plt.plot(dS)
-    plt.xlabel('X-Coordinate')
-    plt.show()
+    #plt.plot(dS)
+    #plt.plot(horLineHSV[:,1])
+    #plt.xlabel('X-Coordinate')
+    #plt.show()
     
     leftBorder = 0
     rightBorder = len(horLineHSV)
     #scan horizontally
     for c in range(leftBorder,rightBorder-1):
-        if leftBorder==0:#first occurence
+        if leftBorder==0:#first occurence is left border
             if dS[c] <= -0.027:
                 leftBorder = c + 8 #better if looking for local minimum, currently only adding fixed distortion
-        elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and dS[c] >= 0.027 and rightBorder==len(horLineHSV):#not red, first occurence
-            rightBorder= c + 5
+        elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and dS[c] >= 0.027 and horLineHSV[c][1]>0.2:#not red and is coloful
+            print("H: "+str(horLineHSV[c][0]))
+            print("dS: "+str(dS[c]))
+            print("S: "+str(horLineHSV[c][1]))
+            rightBorder= c -3
+            break#first occurence
             
 
     #scan vertically
