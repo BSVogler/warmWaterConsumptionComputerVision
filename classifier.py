@@ -113,26 +113,26 @@ def findRectangle(imageRGB):
     imageHSV = matplotlib.colors.rgb_to_hsv(imageRGB)
     
     #find line with highest sum of derivative
-    # maxV = None#maximum values of global maximum
-    # #for row in range(1,imageRGB.shape[0],10):
-    #     lastV = imageHSV[row][0][2]
-    #     sumderiv = 0
-    #     histo = []
-    #     for coloumn in range(1,imageRGB.shape[1]):
-    #         fx = imageHSV[row][coloumn][2]
-    #         deriv = fx - lastV
-    #         sumderiv += abs(deriv)
-    #         histo.append(deriv)
-    #         lastV = fx
-    #
-    #     #found new maximum
-    #     if maxV == None or sumderiv > maxV[0]:
-    #         maxV = (sumderiv, row, histo) #sum of derivative of V, row, histogram of V
-    #
-    #
-    # if maxV == None:
-    #     print("no central line found")
-    #     return
+    maxV = None#maximum values of global maximum
+    for row in range(1,imageRGB.shape[0],10):
+        lastV = imageHSV[row][0][2]
+        sumderiv = 0
+        histo = []
+        for coloumn in range(1,imageRGB.shape[1]):
+            fx = imageHSV[row][coloumn][2]
+            deriv = fx - lastV
+            sumderiv += abs(deriv)
+            histo.append(deriv)
+            lastV = fx
+
+        #found new maximum
+        if maxV == None or sumderiv > maxV[0]:
+            maxV = (sumderiv, row, histo) #sum of derivative of V, row, histogram of V
+
+
+    if maxV == None:
+        print("no central line found")
+        return
         
     RectTupleClass = namedtuple("Rectangle", "left right top bottom")
     #look for biggest change in this line of Saturation    
