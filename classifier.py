@@ -181,6 +181,9 @@ def findRectangle(imageRGB):
     if localMaximum and bottomBorder == len(verLineHSV):
         bottomBorder= r
     
+    #tmp fix
+    topBorder += 7
+    bottomBorder -=17
     
     return RectTupleClass(leftBorder,rightBorder, topBorder, bottomBorder)
 
