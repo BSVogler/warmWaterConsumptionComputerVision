@@ -38,52 +38,61 @@ def segmentation(imgRGB):
       
     #toimage(imgRGB[peak2[0]-10:peak1[0]-5, peak1[1]-30: peak2[1]-25]).show()
     
-    angle = 0
+    #following code assumes that the first is right
+    angleAvg = 0
     #above peak 1 should be an edge separating the blue and white surface, this leads to a higher accuracy of the angle
     first = None
-    last = None
+    current = None
     blue = matplotlib.colors.rgb_to_hsv(np.array([0.06*2*averageGrayValue,0.24*2*averageGrayValue,0.4*2*averageGrayValue]))
     i = 0
-    edge = np.zeros((100,2))
+
+    width = peak2[1]+5-peak1[1]
+    #edge = np.zeros( (int(width / 10),2) )
     for c in range(peak1[1]-30, peak2[1]-25, 10):
-        coloumnHSV = matplotlib.colors.rgb_to_hsv(imgRGB[peak2[0]-10:peak1[0]-5,c])
+        if c < peak1[1]-30+width/2:#skip the first half
+            pass
+        else:
+            coloumnHSV = matplotlib.colors.rgb_to_hsv(imgRGB[peak2[0]-10:peak1[0]-5,c])
         
-        r = peak1[0]
-        dSColoumn = []
-        for r in range(1,coloumnHSV.shape[0]):#from top to bottom
-            dS = coloumnHSV[r][1]-coloumnHSV[r-1][1]
-            dSColoumn.append(dS)
-            if dS < -0.15 and abs(coloumnHSV[r][0]-blue[0]) < 0.3: #edge detection
-                last = (r,c)
-                edge[i][0] = r
-                edge[i][1] = c
-                if first is None:
-                    first = (r,c)
-                else:
-                    angle += math.atan((last[0]-first[0])/(last[1]-first[1]))*180/math.pi #using blue/white edge
-                    i += 1
-                break
-        #print(dSColoumn)
-        #plt.plot(dSColoumn)
-        #plt.plot(coloumnHSV[:,2])
-    print(edge)
+            r = peak1[0]
+            dSColoumn = []
+            for r in range(1,coloumnHSV.shape[0]):#from top to bottom
+                dS = coloumnHSV[r][1]-coloumnHSV[r-1][1]
+                dSColoumn.append(dS)
+                if dS < -0.15 and abs(coloumnHSV[r][0]-blue[0]) < 0.3 and (i==0 or abs(r-current[0]) <= 5): #edge detection, filter outliers
+                    current = (r,c)
+                    #edge[i][0] = r
+                    #edge[i][1] = c
+                    if first is None:
+                        first = (r,c)
+                        print("first: "+str(first))
+                    else:
+                        angle = math.atan((abs(current[0]-first[0]))/(abs(current[1]-first[1])))*180/math.pi #using blue/white edge
+                        angleAvg += angle
+                        print("current: " + str(current) + " angl: "+str(angle)+" i:"+str(i)+"angleAvg:"+str(angleAvg))
+                        i += 1
+                    break
+            #print(dSColoumn)
+            #plt.plot(dSColoumn)
+            #plt.plot(coloumnHSV[:,2])
+    #print(edge)
     
-    plt.scatter(edge[:,1],edge[:,0])
-    plt.xlabel('X-Coordinate')
-    plt.show()
     
-    angle /= i
-    if first is None or last is None:
+
+    if first is None or current is None:
         print("could not detect blue-white edge")
         
+    angleAvg /= i #average
+    print("average angle: "+str(angleAvg))
     #angle = math.atan((peak2[0]-peak1[0])/(peak2[1]-peak1[1]))*180/math.pi #using color peaks
     
-    hypo= int(math.sqrt((peak2[0]-peak1[0])*(peak2[0]-peak1[0]) + (peak2[1]-peak1[1])*(peak2[1]-peak1[1])))+40
+    #the width of the blue section
+    hypo= int(math.sqrt((peak2[0]-peak1[0])*(peak2[0]-peak1[0]) + (peak2[1]-peak1[1])*(peak2[1]-peak1[1])))+30
 
-    return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]-10+hypo, angle, peak1)
+    return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]+hypo, -angleAvg, peak1)
 
 
-#find peak position in image using scale space
+'''find peak position in image using scale space'''
 def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
     print("calculating histogram to find the color peak pos " +str(searchRGB))
     searchHSV = matplotlib.colors.rgb_to_hsv(searchRGB);
@@ -141,7 +150,7 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
     print("Maimumx r,c:"+str((rowMax, columnMax)))
     return (rowMax, columnMax)
  
-#performs some scans to find the line with the maximum derivative (edges)   
+'''performs some scans to find the line with the maximum derivative (edges)'''
 def findRectangle(imageRGB):
     imageRGB = scaleSpace(imageRGB,2.5)
     imageHSV = matplotlib.colors.rgb_to_hsv(imageRGB)
@@ -223,6 +232,7 @@ def findRectangle(imageRGB):
     
     return RectTupleClass(leftBorder,rightBorder, topBorder, bottomBorder)
 
+'''rotates a 2d vector'''
 def rotate2Dvector(point, angle, origin=(0, 0)):
     cos_theta, sin_theta = math.cos(angle), math.sin(angle)
     x, y = point[0] - origin[0], point[1] - origin[1]#translate
@@ -230,8 +240,8 @@ def rotate2Dvector(point, angle, origin=(0, 0)):
     return Point(x * cos_theta - y * sin_theta + origin[0],
             x * sin_theta + y * cos_theta + origin[1])
 
-#performs ocr using tesseract, input is list of numpy images
-#todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
+'''performs ocr using tesseract, input is list of numpy images
+todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality'''
 def ocr(digitsRGB):
     import pytesseract
     digitValue = int(100000) # value of the next digit
@@ -263,7 +273,7 @@ def ocr(digitsRGB):
     asValue *= 0.001
     print(asValue)
    
-#segment digits from rectangle 
+'''segment digits from rectangle '''
 def segmentDigits(whiteRect, segmentRGB, draw):
     digits = []
     numberOfDigits = 8
@@ -288,9 +298,12 @@ def segmentDigits(whiteRect, segmentRGB, draw):
             xLeftBorder = x
         
     return digits
-    
+   
+def getStringFromImage(path):
+    pass
+     
 if __name__ == '__main__':
-    input = "./images/image.jpg"
+    input = "./images/image.jpg"#default input
     if len(sys.argv)>1:
         input = sys.argv[1]
     rgbOrigPIL= Image.open(input)
