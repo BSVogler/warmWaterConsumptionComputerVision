@@ -6,9 +6,11 @@ import matplotlib.pyplot as plt
 import matplotlib
 import math
 import sys
+import os
 from scipy.misc import toimage
 from PIL import Image, ImageFont, ImageDraw, ImageEnhance
 from collections import namedtuple
+import datetime
 
 def scaleSpace(image, sigma):
     #scale space
@@ -272,6 +274,7 @@ def ocr(digitsRGB):
         digitValue = int(digitValue/10)#using int for numerical stability
     asValue *= 0.001
     print(asValue)
+    return asValue
    
 '''segment digits from rectangle '''
 def segmentDigits(whiteRect, segmentRGB, draw):
@@ -285,12 +288,12 @@ def segmentDigits(whiteRect, segmentRGB, draw):
     
     toimage(segmentRGB[whiteRect.top : whiteRect.bottom, whiteRect.left : whiteRect.right]).show()
     for x in range(whiteRect.left, whiteRect.right, stepSize):
-        draw.line(
-            (cornerSegment.x + x,
-            cornerSegment.y,
-            cornerSegment.x + x,
-            cornerSegment.y + segmentHeight)
-        )
+        # draw.line(
+#             (cornerSegment.x + x,
+#             cornerSegment.y,
+#             cornerSegment.x + x,
+#             cornerSegment.y + segmentHeight)
+#         )
         if x > whiteRect.left+stepSize*2:#skip first line and first two digit
             newDigit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-4]#little bit of offset because of the border
             digits.append(newDigit)
@@ -298,15 +301,45 @@ def segmentDigits(whiteRect, segmentRGB, draw):
             xLeftBorder = x
         
     return digits
-   
+
+def save(date,number):
+    with open("numbers.txt", "a") as myfile:
+        myfile.write(str(date[0])+"-"+str(date[1])+"-"+str(date[2])+"-"+str(date[3])+"-"+str(date[4]) +" "+str(number))
+    
+def loadLast():
+    lastDate = [2018,3,9,0,15]
+    lastvalidnumber = 196.119
+    
+    # with open("numbers.txt", "r") as f:
+ #        f.seek(-2, os.SEEK_END)     # Jump to the second last byte.
+ #        while f.read(1) != b"\n":   # Until EOL is found...
+ #            f.seek(-2, os.SEEK_CUR) # ...jump back the read byte plus one more.
+ #        last= f.readline()         # Read last line.
+        
+    import subprocess
+    last = str(subprocess.check_output(['tail', '-1', "numbers.txt"]))[2:]
+    
+    lastDate = []
+    dStr = last[:last.rfind('/')]
+    dStr = dStr[dStr.rfind('/')+1:]
+    lastDate.append(int(dStr[:dStr.find('-')]))#year
+    dStr = dStr[dStr.find('-')+1:]
+    lastDate.append(int(dStr[:dStr.find('-')]))#month
+    dStr = dStr[dStr.find('-')+1:]
+    lastDate.append(int(dStr[:dStr.find('-')]))#day
+    dStr = dStr[dStr.find('-')+1:]
+    lastDate.append(int(dStr[:dStr.find('-')]))#hour
+    dStr = dStr[dStr.find('-')+1:]
+    lastDate.append(int(dStr[:dStr.find(' ')]))#minute
+
+    dStr = dStr[dStr.find(' ')+1:]
+    lastvalidnumber = float(dStr)
+    lastDate = datetime.datetime(lastDate[0],lastDate[1],lastDate[2],lastDate[3],lastDate[4]);
+    return lastDate, lastvalidnumber
+    
+    
 def getStringFromImage(path):
-    pass
-     
-if __name__ == '__main__':
-    input = "./images/image.jpg"#default input
-    if len(sys.argv)>1:
-        input = sys.argv[1]
-    rgbOrigPIL= Image.open(input)
+    rgbOrigPIL= Image.open(path)
     rgbOrigPIL.load()
     rgbOrig = np.asarray( rgbOrigPIL, dtype="float32" )
     print("Input dimension: "+str(rgbOrig.shape))
@@ -420,4 +453,32 @@ if __name__ == '__main__':
     digits = segmentDigits(whiteRect,correctedRGB, draw)
     #show marked picture
     toimage(rgbOrigPIL).show()
-    ocr(digits)        
+    return ocr(digits)
+     
+if __name__ == '__main__':
+    input = "./images/image.jpg"#default input
+    if len(sys.argv)>1:
+        input = sys.argv[1]
+      
+    date = []  
+    dStr = input[:input.rfind('/')]
+    dStr = dStr[dStr.rfind('/')+1:]
+    date.append(int(dStr[:dStr.find('-')]))#year
+    dStr = dStr[dStr.find('-')+1:]
+    date.append(int(dStr[:dStr.find('-')]))#month
+    dStr = dStr[dStr.find('-')+1:]
+    date.append(int(dStr))#day
+    date.append(int(input[input.rfind('/')+1:input.rfind('_')]))#hour
+    date.append(int(input[input.rfind('_')+1:input.rfind('.')]))#minute
+    
+    date = datetime.datetime(date[0],date[1],date[2],date[3],date[4])
+    lastDate, lastvalidnumber = loadLast()
+    if date > lastDate:
+        newNumber = getStringFromImage(input)
+        if newNumber < lastvalidnumber:
+            print("OCR returned wrong result. Rejected.")
+        else:
+            save(dateList,newNumber)
+    else:
+        print("input is older then last valid data")
+    
