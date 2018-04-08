@@ -4,15 +4,15 @@ This repo contains the source code to analyze a warm water counter.
 Currently the OCR is returning bad results and the segmentation of the letters it not very robust.
 
 ## Recommended Hardware
-Raspberry Pi (32€) + case
-sd card (10€)
-Rasperry Pi Camera (non infrared version, 12€)
-power source cable (recommend a long cable, 9€)
-if raspberry pi 2 a wifi dongle (EDIMAX EW-7811UN Wireless USB Adapter, 8€)
-[cables](https://www.amazon.de/gp/product/B0786KBBZ5/ref=oh_aui_detailpage_o02_s02?ie=UTF8&psc=1) (4,29€)
-[white LEDs](https://www.amazon.de/gp/product/B0786KBBZ5/ref=oh_aui_detailpage_o02_s02?ie=UTF8&psc=1) (7€)
-resistors and transistor
-soldering iron
+- Raspberry Pi (32€) + case
+- sd card (10€)
+- Rasperry Pi Camera (non infrared version, 12€)
+- power source cable (recommend a long cable, 9€)
+- if raspberry pi 2 a wifi dongle (EDIMAX EW-7811UN Wireless USB Adapter, 8€)
+- [cables](https://www.amazon.de/gp/product/B0786KBBZ5/ref=oh_aui_detailpage_o02_s02?ie=UTF8&psc=1) (4,29€)
+- [white LEDs](https://www.amazon.de/gp/product/B0786KBBZ5/ref=oh_aui_detailpage_o02_s02?ie=UTF8&psc=1) (7€)
+- resistors and transistor
+- soldering iron
 
 ## Cost
 You can use a different computer and a different camera. Note that the script for image capturing is inteded to run on a raspberry pi. I got my raspberry pi for free via the career network careerloft.
@@ -30,9 +30,10 @@ The algorithm works in the following order
 - white balance by using RGB average
 - look for yellow and blue spot
 - calculate angle between the spots to correct image rotation
+- improve accuracy of angle by tracking white/blue edge
 - take segment some pixels above
 - scan horizontally for maximum gradient to find central line
 - find borders of digit box by using first gradient above a threshold
-- segment equally
-- use ocr software "tesseract"
+- split in equally sized parts to obtain digits
+- use ocr software "tesseract" on every digit
 
