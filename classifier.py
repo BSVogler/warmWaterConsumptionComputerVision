@@ -154,7 +154,7 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
  
 '''performs some scans to find the line with the maximum derivative (edges)'''
 def findRectangle(imageRGB):
-    imageRGB = scaleSpace(imageRGB,2.5)
+    imageRGB = scaleSpace(imageRGB,1.2)#higher precision for more precise results, but more affected by noise
     imageHSV = matplotlib.colors.rgb_to_hsv(imageRGB)
     
     #find line with highest sum of derivative
@@ -192,16 +192,20 @@ def findRectangle(imageRGB):
     leftBorder = 0
     rightBorder = len(horLineHSV)
     #scan horizontally
-    for c in range(leftBorder,rightBorder-1):
+    c= leftBorder
+    while c < rightBorder-1:
         if leftBorder==0:#first occurence is left border
-            if dS[c] <= -0.027:
-                leftBorder = c + 12 #better if looking for local minimum, currently only adding fixed distortion
+            if dS[c] <= -0.027:#change in saturation must be big enough
+                leftBorder = c + 11 #better if looking for local minimum, currently only adding fixed distortion
+                #skip the next coloums
+                c += 150
         elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and dS[c] >= 0.027 and horLineHSV[c][1]>0.2:#not red and is coloful
             print("H: "+str(horLineHSV[c][0]))
             print("dS: "+str(dS[c]))
             print("S: "+str(horLineHSV[c][1]))
-            rightBorder= c-1
+            rightBorder= c-3
             break#first occurence
+        c+=1
             
 
     #scan vertically
@@ -215,7 +219,7 @@ def findRectangle(imageRGB):
     localMaximum = False
     for r in range(topBorder, bottomBorder-2):
         if topBorder == 0:#first occurence
-            if dS[r] <= -0.027:
+            if dS[r] <= -0.027:#change in saturation must be big enough
                 localMinimum = True
             if localMinimum and ddS[r] > 0: #wait till it rises again
                 topBorder = r
