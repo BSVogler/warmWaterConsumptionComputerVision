@@ -304,7 +304,7 @@ def segmentDigits(whiteRect, segmentRGB, draw):
 
 def save(date,number):
     with open("numbers.txt", "a") as myfile:
-        myfile.write(str(date[0])+"-"+str(date[1])+"-"+str(date[2])+"-"+str(date[3])+"-"+str(date[4]) +" "+str(number))
+        myfile.write(str(date.year)+"-"+str(date.month)+"-"+str(date.day)+"-"+str(date.hour)+"-"+str(date.minute) +" "+str(number)+"\n")
     
 def loadLast():
     lastDate = [2018,3,9,0,15]
@@ -471,14 +471,14 @@ if __name__ == '__main__':
     date.append(int(input[input.rfind('/')+1:input.rfind('_')]))#hour
     date.append(int(input[input.rfind('_')+1:input.rfind('.')]))#minute
     
-    date = datetime.datetime(date[0],date[1],date[2],date[3],date[4])
+    date = datetime.datetime(date[0],date[1],date[2],date[3],date[4])#date from list into datetime object
     lastDate, lastvalidnumber = loadLast()
     if date > lastDate:
         newNumber = getStringFromImage(input)
         if newNumber < lastvalidnumber:
-            print("OCR returned wrong result. Rejected.")
+            print("OCR returned impossible result. Rejected.")
         else:
-            save(dateList,newNumber)
+            save(date,newNumber)
     else:
         print("input is older then last valid data")
     
