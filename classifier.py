@@ -133,10 +133,10 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
         cdirReduced[int(c/bucketReduction)] += cdir[c]
         
     # plt.plot(rdir)
- #    plt.plot(cdir)
- #    plt.xlabel('X-Coordinate')
- #    plt.grid(True)
- #    plt.show()
+    # plt.plot(cdir)
+    # plt.xlabel('X-Coordinate')
+    # plt.grid(True)
+    # plt.show()
          
     if np.sum(rdirReduced)+np.sum(cdirReduced) ==0:
         print("did not find a peak")
@@ -253,23 +253,45 @@ def ocr(digitsRGB):
     digitValue = int(100000) # value of the next digit
     asValue = int(0) #resulting value
     
-    for digitRGB in digitsRGB:
+    for digitRGB in digitsRGB:     
         digitBinary = np.zeros([digitRGB.shape[0],digitRGB.shape[1]])
         for r in range(digitRGB.shape[0]):
             for c in range(digitRGB.shape[1]):
                 if digitValue>100:
-                    if np.sum(digitRGB[r][c][:]) > 310:
+                    if np.sum(digitRGB[r][c][:]) > 270:#everything bright to white
                         digitBinary[r][c] = 255
                 else:
                     digitHSV= matplotlib.colors.rgb_to_hsv(digitRGB)
-                    if digitHSV[r][c][1] < 0.2:
+                    if digitHSV[r][c][1] < 0.23 or abs(0.5-digitHSV[r][c][0]) < 0.4: #everything with low saturation or non red is white
                         digitBinary[r][c] = 255
                 #digitBinary[r][c] = np.sum(digitRGB[r][c][:])/3
-        Image.fromarray(np.uint8(digitBinary), 'L').show()
-        #toimage(digitBinary).show()            
-                    
-        digitasNumber = pytesseract.image_to_string(digitBinary, config='-psm 10 -c tessedit_char_whitelist=0123456789')
-        print(digitasNumber)
+        #Image.fromarray(np.uint8(digitBinary), 'L').show()
+        
+        
+        #remove black bottom border for better ocr
+        foundWhite=False
+        bottomBorder=digitRGB.shape[0]-1
+        middle = int(digitRGB.shape[1]/2)
+        while (not foundWhite):
+            if digitBinary[bottomBorder][middle]==0:
+                bottomBorder -= 1
+            else:
+                foundWhite=True
+        
+        #toimage(digitBinary).show()    
+        
+        #todo detect low confidence     
+        
+        #not working 
+        #ocrResult = pytesseract.run_and_get_output(image, 'txt', lang=None, config='-psm 10 -c tessedit_char_whitelist=0123456789', nice=0)
+        
+        #returns wrong results
+        #ocrResult = pytesseract.image_to_data(digitBinary[5:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789', output_type="dict")
+        #print(ocrResult)
+        #digitasNumber = ocrResult["text"][0]
+        
+        digitasNumber = pytesseract.image_to_string(digitBinary[5:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789')
+        
         if digitasNumber == "":
             digitasNumber = 0
         else:
@@ -299,7 +321,7 @@ def segmentDigits(whiteRect, segmentRGB, draw):
 #             cornerSegment.y + segmentHeight)
 #         )
         if x > whiteRect.left+stepSize*2:#skip first line and first two digit
-            newDigit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+4 : x-4]#little bit of offset because of the border
+            newDigit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+5 : x]#little bit of offset because of the border
             digits.append(newDigit)
             #toimage(newDigit).show()
             xLeftBorder = x
@@ -336,7 +358,7 @@ def loadLast():
     dStr = dStr[dStr.find('-')+1:]
     lastDate.append(int(dStr[:dStr.find(' ')]))#minute
 
-    dStr = dStr[dStr.find(' ')+1:]
+    dStr = dStr[dStr.find(' ')+1:-2]
     lastvalidnumber = float(dStr)
     lastDate = datetime.datetime(lastDate[0],lastDate[1],lastDate[2],lastDate[3],lastDate[4]);
     return lastDate, lastvalidnumber
