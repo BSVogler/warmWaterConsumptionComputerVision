@@ -1,6 +1,6 @@
 # warmWaterConsumptionComputerVision
 
-This repo contains the source code to analyze a warm water counter.
+This repo contains the source code to analyze a warm water counter using python 3.
 Currently the OCR is returning bad results and the segmentation of the letters it not very robust.
 
 ## Recommended Hardware
@@ -29,7 +29,7 @@ The algorithm works in the following order
 
 - white balance by using RGB average
 - look for yellow and blue spot
-- calculate angle between the spots to correct image rotation
+- calculate angle between the selected spots to correct image rotation
 - improve accuracy of angle by tracking white/blue edge
 - take segment some pixels above
 - scan horizontally for maximum gradient to find central line
@@ -37,3 +37,7 @@ The algorithm works in the following order
 - split in equally sized parts to obtain digits
 - use ocr software "tesseract" on every digit
 
+##Dependencies
+numpy, scipy, pytesseract
+
+Install with `pip3 --install pytesseract`  
