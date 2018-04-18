@@ -250,7 +250,7 @@ def rotate2Dvector(point, angle, origin=(0, 0)):
 todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality'''
 def ocr(digitsRGB):
     import pytesseract
-    digitValue = int(100000) # value of the next digit
+    digitValue = int(1e5) # value of the next digit
     asValue = int(0) #resulting value
     
     for digitRGB in digitsRGB:     
@@ -271,12 +271,12 @@ def ocr(digitsRGB):
         #remove black bottom border for better ocr
         foundWhite=False
         bottomBorder=digitRGB.shape[0]-1
-        middle = int(digitRGB.shape[1]/2)
+        middle = digitRGB.shape[1]//2
         while (not foundWhite):
             if digitBinary[bottomBorder][middle]==0:
                 bottomBorder -= 1
             else:
-                foundWhite=True
+                foundWhite = True
         
         #toimage(digitBinary).show()    
         
@@ -297,8 +297,8 @@ def ocr(digitsRGB):
         else:
             digitasNumber = int(digitasNumber)
         asValue += int(digitasNumber*digitValue)
-        digitValue = int(digitValue/10)#using int for numerical stability
     asValue *= 0.001
+        digitValue = digitValue//10#using int for numerical stability
     print(asValue)
     return asValue
    
@@ -497,7 +497,7 @@ if __name__ == '__main__':
     date.append(int(input[input.rfind('/')+1:input.rfind('_')]))#hour
     date.append(int(input[input.rfind('_')+1:input.rfind('.')]))#minute
     
-    date = datetime.datetime(date[0],date[1],date[2],date[3],date[4])#date from list into datetime object
+    date = datetime.datetime(*date)#date from list into datetime object
     lastDate, lastvalidnumber = loadLast()
     if date > lastDate:
         newNumber = getStringFromImage(input)
