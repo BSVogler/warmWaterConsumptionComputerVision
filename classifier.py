@@ -297,8 +297,8 @@ def ocr(digitsRGB):
         else:
             digitasNumber = int(digitasNumber)
         asValue += int(digitasNumber*digitValue)
-    asValue *= 0.001
         digitValue = digitValue//10#using int for numerical stability
+    asValue /= 1000
     print(asValue)
     return asValue
    
