@@ -20,8 +20,12 @@ def scaleSpace(image, sigma):
     
     return rgbScaleSpace
 
-'''return rowTop, rowBottom, columnLeft, columnRight, angle, anchorpoint'''
 def segmentation(imgRGB):
+    '''
+    return rowTop, rowBottom, columnLeft, columnRight, angle, anchorpoint
+    :param imgRGB:
+    :return:
+    '''
     print("Segmentation")
     scaledRGB = scaleSpace(imgRGB,10)
     #pilImage = Image.fromarray(np.uint8(scaledRGB), mode='RGB')
@@ -61,7 +65,7 @@ def segmentation(imgRGB):
             for r in range(1,coloumnHSV.shape[0]):#from top to bottom
                 dS = coloumnHSV[r][1]-coloumnHSV[r-1][1]
                 dSColoumn.append(dS)
-                if dS < -0.15 and abs(coloumnHSV[r][0]-blue[0]) < 0.3 and (i==0 or abs(r-current[0]) <= 5): #edge detection, filter outliers
+                if dS < -0.15 and abs(coloumnHSV[r][0]-blue[0]) < 0.3 and (i == 0 or abs(r-current[0]) <= 5): #edge detection, filter outliers
                     current = (r,c)
                     #edge[i][0] = r
                     #edge[i][1] = c
@@ -69,7 +73,7 @@ def segmentation(imgRGB):
                         first = (r,c)
                         print("first: "+str(first))
                     else:
-                        angle = math.atan((abs(current[0]-first[0]))/(abs(current[1]-first[1])))*180/math.pi #using blue/white edge
+                        angle = math.degrees(math.atan((abs(current[0]-first[0]))/(abs(current[1]-first[1])))) #using blue/white edge
                         angleAvg += angle
                         print("current: " + str(current) + " angl: "+str(angle)+" i:"+str(i)+"angleAvg:"+str(angleAvg))
                         i += 1
@@ -94,8 +98,8 @@ def segmentation(imgRGB):
     return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]+hypo, -angleAvg, peak1)
 
 
-'''find peak position in image using scale space'''
 def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
+    '''find peak position in image using scale space'''
     print("calculating histogram to find the color peak pos " +str(searchRGB))
     searchHSV = matplotlib.colors.rgb_to_hsv(searchRGB);
     
@@ -152,13 +156,13 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
     print("Maimumx r,c:"+str((rowMax, columnMax)))
     return (rowMax, columnMax)
  
-'''performs some scans to find the line with the maximum derivative (edges)'''
 def findRectangle(imageRGB):
-    imageRGB = scaleSpace(imageRGB,1.2)#higher precision for more precise results, but more affected by noise
+    '''performs some scans to find the line with the maximum derivative (edges)'''
+    imageRGB = scaleSpace(imageRGB,1.2)  # higher precision for more precise results, but more affected by noise
     imageHSV = matplotlib.colors.rgb_to_hsv(imageRGB)
     
-    #find line with highest sum of derivative
-    maxV = None#maximum values of global maximum
+    # find line with highest sum of derivative
+    maxV = None  # maximum values of global maximum
     for row in range(1,imageRGB.shape[0],10):
         lastV = imageHSV[row][0][2]
         sumderiv = 0
@@ -170,9 +174,9 @@ def findRectangle(imageRGB):
             histo.append(deriv)
             lastV = fx
 
-        #found new maximum
+        # found new maximum
         if maxV == None or sumderiv > maxV[0]:
-            maxV = (sumderiv, row, histo) #sum of derivative of V, row, histogram of V
+            maxV = (sumderiv, row, histo)  # sum of derivative of V, row, histogram of V
 
 
     if maxV == None:
@@ -180,7 +184,7 @@ def findRectangle(imageRGB):
         return
         
     RectTupleClass = namedtuple("Rectangle", "left right top bottom")
-    #look for biggest change in this line of Saturation    
+    # look for biggest change in this line of Saturation
     horLineHSV = imageHSV[maxV[1],:]
     dS = np.diff(horLineHSV[:,1])
     
@@ -191,25 +195,24 @@ def findRectangle(imageRGB):
     
     leftBorder = 0
     rightBorder = len(horLineHSV)
-    #scan horizontally
+    # scan horizontally
     c= leftBorder
     while c < rightBorder-1:
-        if leftBorder==0:#first occurence is left border
-            if dS[c] <= -0.027:#change in saturation must be big enough
-                leftBorder = c + 11 #better if looking for local minimum, currently only adding fixed distortion
-                #skip the next coloums
+        if leftBorder==0:  # first occurence is left border
+            if dS[c] <= -0.027:  # change in saturation must be big enough
+                leftBorder = c + 11  # better if looking for local minimum, currently only adding fixed distortion
+                # skip the next coloums
                 c += 150
-        elif horLineHSV[c][0] < 0.84 and horLineHSV[c][0] > 0.15 and dS[c] >= 0.027 and horLineHSV[c][1]>0.2:#not red and is coloful
+        elif 0.15 < horLineHSV[c][0] < 0.84 and dS[c] >= 0.027 and horLineHSV[c][1] > 0.2:  # not red and is coloful
             print("H: "+str(horLineHSV[c][0]))
             print("dS: "+str(dS[c]))
             print("S: "+str(horLineHSV[c][1]))
             rightBorder= c-3
-            break#first occurence
+            break  # first occurrence
         c+=1
-            
 
-    #scan vertically
-    verLineHSV = imageHSV[:,int(len(horLineHSV)/2)]#middle
+    # scan vertically
+    verLineHSV = imageHSV[:,int(len(horLineHSV)/2)]  # middle
     dS = np.diff(verLineHSV[:,1])
     ddS = np.diff(dS)
     
@@ -218,37 +221,43 @@ def findRectangle(imageRGB):
     localMinimum = False
     localMaximum = False
     for r in range(topBorder, bottomBorder-2):
-        if topBorder == 0:#first occurence
-            if dS[r] <= -0.027:#change in saturation must be big enough
+        if topBorder == 0:  # first occurence
+            if dS[r] <= -0.027:  # change in saturation must be big enough
                 localMinimum = True
-            if localMinimum and ddS[r] > 0: #wait till it rises again
+            if localMinimum and ddS[r] > 0: # wait till it rises again
                 topBorder = r
         else:
-            if (bottomBorder == len(verLineHSV) #first occurence
-                and verLineHSV[r][0] < 0.84 and verLineHSV[r][0] > 0.15 #not red, 
+            if (bottomBorder == len(verLineHSV)  # first occurence
+                and 0.15 < verLineHSV[r][0] < 0.84   # not red,
                 and dS[r] >= 0.027
             ):
                 localMaximum = True
             if localMaximum and ddS[r] < 0:
-                bottomBorder= r
+                bottomBorder = r
     
     #if no result was found, take the last
     if localMaximum and bottomBorder == len(verLineHSV):
-        bottomBorder= r
+        bottomBorder = r
     
     return RectTupleClass(leftBorder,rightBorder, topBorder, bottomBorder)
 
-'''rotates a 2d vector'''
 def rotate2Dvector(point, angle, origin=(0, 0)):
+    '''rotates a 2d vector'''
     cos_theta, sin_theta = math.cos(angle), math.sin(angle)
     x, y = point[0] - origin[0], point[1] - origin[1]#translate
     Point = namedtuple('Point', 'x y')
     return Point(x * cos_theta - y * sin_theta + origin[0],
             x * sin_theta + y * cos_theta + origin[1])
 
-'''performs ocr using tesseract, input is list of numpy images
-todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality'''
 def ocr(digitsRGB):
+    '''
+
+    performs ocr using tesseract, input is list of numpy images
+    todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
+
+    :param digitsRGB:
+    :return:
+    '''
     import pytesseract
     digitValue = int(1e5) # value of the next digit
     asValue = int(0) #resulting value
@@ -302,8 +311,14 @@ def ocr(digitsRGB):
     print(asValue)
     return asValue
    
-'''segment digits from rectangle '''
 def segmentDigits(whiteRect, segmentRGB, draw):
+    '''
+    segment digits from rectangle
+    :param whiteRect:
+    :param segmentRGB:
+    :param draw:
+    :return:
+    '''
     digits = []
     numberOfDigits = 8
     width = whiteRect.right - whiteRect.left
@@ -416,14 +431,14 @@ def getStringFromImage(path):
     #pilRGB.show()
     correctedRGB = np.asarray(pilRGB)#pillow to numpy
     
-    #rgb = ndimage.interpolation.rotate(correctedRGB, segRange[4], reshape=False)#rotate using scipy ndimage            
+    # rgb = ndimage.interpolation.rotate(correctedRGB, segRange[4], reshape=False)#rotate using scipy ndimage
     correctedRGB = correctedRGB[segRange[0]:segRange[1], segRange[2]:segRange[3], :]
     #toimage(correctedRGB).show()#show segment
     
     #rgb = rgb.reshape(rgb.shape[0]*rgb.shape[1], rgb.shape[2])
-    #translate image by the difference of 
+    #  translate image by the difference of
     draw = ImageDraw.Draw(rgbOrigPIL)
-    #draw image size reduction
+    # draw image size reduction
     draw.rectangle(
         (rgbOrig.shape[1]*reductionWidth/2,
         rgbOrig.shape[0]*reductionHeight/2,
@@ -431,19 +446,19 @@ def getStringFromImage(path):
         rgbOrig.shape[0]*(1-reductionHeight/2)
         ), outline="blue", fill=None)
    
-    #rotate point around anchor, bug: reduction is shorter because of rotation, current implementation does not shrink it
-    rotationAnchor = (rgbOrig.shape[1]*reductionWidth/2 + rotationAnchor[0], rgbOrig.shape[0]*reductionHeight/2 +rotationAnchor[1])#from r,c to x,y
+    # rotate point around anchor, bug: reduction is shorter because of rotation, current implementation does not shrink it
+    rotationAnchor = (rgbOrig.shape[1]*reductionWidth/2 + rotationAnchor[0], rgbOrig.shape[0]*reductionHeight/2 +rotationAnchor[1]) # from r,c to x,y
     rgbOrigPIL = rgbOrigPIL.rotate(segRange[4], resample=Image.BILINEAR, center=rotationAnchor)
-    #top or bottom left corner relative to origninal image
+    # top or bottom left corner relative to origninal image
     cornerAbsolute = (rgbOrig.shape[1]*reductionWidth/2 + segRange[2], rgbOrig.shape[0]*reductionHeight/2+ segRange[0])
-    cornerSegment = rotate2Dvector(cornerAbsolute, segRange[4]*math.pi/180.0, rotationAnchor)#position after rotation?
+    cornerSegment = rotate2Dvector(cornerAbsolute, math.radians(segRange[4]), rotationAnchor) # position after rotation?
     
-    #draw things
+    # draw things
     segmentWidth = segRange[3] - segRange[2]
     segmentHeight= segRange[1] - segRange[0]
     draw = ImageDraw.Draw(rgbOrigPIL)
     
-    #draw segmentation
+    # draw segmentation
     draw.rectangle(
         (cornerSegment.x,
         cornerSegment.y ,
@@ -451,9 +466,9 @@ def getStringFromImage(path):
         cornerSegment.y + segmentHeight
         ), outline="red", fill=None)
     
-    whiteRect = findRectangle(correctedRGB)#find rectangle in this segment
+    whiteRect = findRectangle(correctedRGB) # find rectangle in this segment
     print(whiteRect)
-    #draw central line
+    # draw central line
     #draw.line(
     #    (cornerSegment.x,
     #    cornerSegment.y + maxLine[0],
@@ -480,10 +495,11 @@ def getStringFromImage(path):
     #show marked picture
     toimage(rgbOrigPIL).show()
     return ocr(digits)
-     
+
+
 if __name__ == '__main__':
     input = "./images/image.jpg"#default input
-    if len(sys.argv)>1:
+    if len(sys.argv) > 1:
         input = sys.argv[1]
       
     date = []  
@@ -507,4 +523,3 @@ if __name__ == '__main__':
             save(date,newNumber)
     else:
         print("input is older then last valid data")
-    
