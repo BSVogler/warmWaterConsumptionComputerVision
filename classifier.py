@@ -33,7 +33,7 @@ def segmentation(imgRGB):
     #toimage(scaledRGB).show()
     scaledHSV = matplotlib.colors.rgb_to_hsv(scaledRGB)
     
-    #calculate segmentation coordinates
+    # calculate segmentation coordinates
     #blueAreaRGB = np.array([0.192,0.22,0.28])
     peak1 = findMaximumColor(scaledHSV, np.array([0.43*2*averageGrayValue,0.37*2*averageGrayValue,0*2*averageGrayValue]), errormarginH=0.05*2*averageGrayValue, minS=0.5*2*averageGrayValue)#yellow
     peak2 = findMaximumColor(scaledHSV, np.array([0.32*2*averageGrayValue,0.15*2*averageGrayValue,0.2*2*averageGrayValue]), errormarginH=0.155*2*averageGrayValue,minS=0.11*2*averageGrayValue)#red
@@ -44,9 +44,9 @@ def segmentation(imgRGB):
       
     #toimage(imgRGB[peak2[0]-10:peak1[0]-5, peak1[1]-30: peak2[1]-25]).show()
     
-    #following code assumes that the first is right
+    # following code assumes that the first is right
     angleAvg = 0
-    #above peak 1 should be an edge separating the blue and white surface, this leads to a higher accuracy of the angle
+    # above peak 1 should be an edge separating the blue and white surface, this leads to a higher accuracy of the angle
     first = None
     current = None
     blue = matplotlib.colors.rgb_to_hsv(np.array([0.06*2*averageGrayValue,0.24*2*averageGrayValue,0.4*2*averageGrayValue]))
@@ -60,7 +60,6 @@ def segmentation(imgRGB):
         else:
             coloumnHSV = matplotlib.colors.rgb_to_hsv(imgRGB[peak2[0]-10:peak1[0]-5,c])
         
-            r = peak1[0]
             dSColoumn = []
             for r in range(1,coloumnHSV.shape[0]):#from top to bottom
                 dS = coloumnHSV[r][1]-coloumnHSV[r-1][1]
@@ -348,9 +347,6 @@ def save(date,number):
         myfile.write(str(date.year)+"-"+str(date.month)+"-"+str(date.day)+"-"+str(date.hour)+"-"+str(date.minute) +" "+str(number)+"\n")
     
 def loadLast():
-    lastDate = [2018,3,9,0,15]
-    lastvalidnumber = 196.119
-    
     # with open("numbers.txt", "r") as f:
  #        f.seek(-2, os.SEEK_END)     # Jump to the second last byte.
  #        while f.read(1) != b"\n":   # Until EOL is found...
@@ -360,23 +356,23 @@ def loadLast():
     import subprocess
     last = str(subprocess.check_output(['tail', '-1', "numbers.txt"]))[2:]
     
-    lastDate = []
+    last_date = []
     dStr = last[:last.rfind('/')]
     dStr = dStr[dStr.rfind('/')+1:]
-    lastDate.append(int(dStr[:dStr.find('-')]))#year
+    last_date.append(int(dStr[:dStr.find('-')]))#year
     dStr = dStr[dStr.find('-')+1:]
-    lastDate.append(int(dStr[:dStr.find('-')]))#month
+    last_date.append(int(dStr[:dStr.find('-')]))#month
     dStr = dStr[dStr.find('-')+1:]
-    lastDate.append(int(dStr[:dStr.find('-')]))#day
+    last_date.append(int(dStr[:dStr.find('-')]))#day
     dStr = dStr[dStr.find('-')+1:]
-    lastDate.append(int(dStr[:dStr.find('-')]))#hour
+    last_date.append(int(dStr[:dStr.find('-')]))#hour
     dStr = dStr[dStr.find('-')+1:]
-    lastDate.append(int(dStr[:dStr.find(' ')]))#minute
+    last_date.append(int(dStr[:dStr.find(' ')]))#minute
 
     dStr = dStr[dStr.find(' ')+1:-2]
     lastvalidnumber = float(dStr)
-    lastDate = datetime.datetime(lastDate[0],lastDate[1],lastDate[2],lastDate[3],lastDate[4]);
-    return lastDate, lastvalidnumber
+    last_date = datetime.datetime(last_date[0],last_date[1],last_date[2],last_date[3],last_date[4]);
+    return last_date, lastvalidnumber
     
     
 def getStringFromImage(path):
@@ -385,7 +381,7 @@ def getStringFromImage(path):
     rgbOrig = np.asarray( rgbOrigPIL, dtype="float32" )
     print("Input dimension: "+str(rgbOrig.shape))
     
-    #use only a cut of the original pucture
+    # use only a cut of the original pucture
     reductionWidth = 0.48
     reductionHeight = 0.1
     print(str(reductionWidth*100)+"%x"+str(reductionHeight*100)+"% image size reduction")
@@ -411,12 +407,12 @@ def getStringFromImage(path):
 
     imgHSV = matplotlib.colors.rgb_to_hsv(rgb)
     
-    #normalize
+    # normalize
     minV = np.min(imgHSV[:,:,2])
-    imgHSV[:, :, 2] -= minV #minimum value at 0
+    imgHSV[:, :, 2] -= minV # minimum value at 0
 
     maxV = np.max(imgHSV[:,:,2])
-    imgHSV[:, :, 2] /= maxV #maximum value is 1
+    imgHSV[:, :, 2] /= maxV # maximum value is 1
     #averageV = imgHSV[:, :, 2].mean()
     #imgHSV[:, :, 2] *= averageGrayValue / averageV #scale that average is averageGrayValue
     correctedRGB= matplotlib.colors.hsv_to_rgb(imgHSV)
@@ -514,8 +510,8 @@ if __name__ == '__main__':
     date.append(int(input[input.rfind('_')+1:input.rfind('.')]))#minute
     
     date = datetime.datetime(*date)#date from list into datetime object
-    lastDate, lastvalidnumber = loadLast()
-    if date > lastDate:
+    last_date, lastvalidnumber = loadLast()
+    if date > last_date:
         newNumber = getStringFromImage(input)
         if newNumber < lastvalidnumber:
             print("OCR returned impossible result. Rejected.")
