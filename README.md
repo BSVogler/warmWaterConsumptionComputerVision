@@ -37,7 +37,15 @@ The algorithm works in the following order
 - split in equally sized parts to obtain digits
 - use ocr software "tesseract" on every digit
 
-##Dependencies
+## Dependencies
 numpy, scipy, pytesseract
 
 Install with `pip3 --install pytesseract`  
+
+## Installation
+Make sure that the dependencies are installed. The script should be run when the raspberry boots. I put
+the following two lines into `/etc/rc.local`
+```bash
+cd /home/pi
+python3 ./takepicture.py >> tlLog.log
+```
