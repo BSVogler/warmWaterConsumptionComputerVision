@@ -14,6 +14,10 @@ Currently the OCR is returning bad results and the segmentation of the letters i
 - resistors and transistor
 - soldering iron
 
+### Hardware installation
+I soldered the LEDS together. Then I installed them on the side (Auflichtbeleuchtung). When they are installed slightly on the side the depth casts a shadow, which can be used for digit segmentation. When only one single start and endpoint is used for digit segmentation they light can be installed near the camera. However specular reflections of the transparant surface are not wanted. Only the diffuse reflection should be visible so it is recommended to install them on the side. Alternativly one could use a polarization filter.
+Fix fixating the whole construction you can use cardboard, paper, wood and 3d printed stuff. I just taped the raspberry pi to the wall.
+
 ## Cost
 You can use a different computer and a different camera. Note that the script for image capturing is inteded to run on a raspberry pi. I got my raspberry pi for free via the career network careerloft.
 
