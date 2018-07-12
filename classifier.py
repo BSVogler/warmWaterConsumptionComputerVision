@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 import math
 import sys
-import os
 from scipy.misc import toimage
 from PIL import Image, ImageDraw
 from collections import namedtuple
