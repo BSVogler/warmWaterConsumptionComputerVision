@@ -8,10 +8,12 @@ import math
 import sys
 import os
 from scipy.misc import toimage
-from PIL import Image, ImageFont, ImageDraw, ImageEnhance
+from PIL import Image, ImageDraw
 from collections import namedtuple
 import datetime
+from scipy.ndimage.filters import gaussian_filter
 
+#returns nd-image
 def scaleSpace(image, sigma):
     #scale space
     #rgbScaleSpace=np.zeros_like(image)
@@ -97,51 +99,43 @@ def segmentation(imgRGB):
     return (peak1[0]-110,peak1[0]-35, peak1[1]-10, peak1[1]+hypo, -angleAvg, peak1)
 
 
-def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
+def findMaximumColor(imgHSV, searchRGB, errormarginH, minS):
     '''find peak position in image using scale space'''
     print("calculating histogram to find the color peak pos " +str(searchRGB))
     searchHSV = matplotlib.colors.rgb_to_hsv(searchRGB);
     
     #search for valid pixels (pixels matching search criteria)
     validPixels = np.zeros((imgHSV.shape[0], imgHSV.shape[1]), dtype=bool)
-    startY = 0
-    # specialRuel for more robustness and less generalization
-    # there must be some non-target color above
-    if specialRule:
-        startY = int(0.2*imgHSV.shape[1]) #cut 20% percent from top
-    for y in range(startY,imgHSV.shape[0]):
+    for y in range(imgHSV.shape[0]):
         for x in range(imgHSV.shape[1]):
             #if abs(scaledHSV[x][y][0]-yellowAreaHSV[0]) < 0.07 and scaledHSV[x][y][1] > 0.3 and scaledHSV[x][y][2]<0.9 and scaledHSV[x][y][2]>0.3:
-            if abs(imgHSV[y][x][0]-searchHSV[0]) < errormarginH and imgHSV[y][x][1] > minS and imgHSV[y][x][2]>0.18*2*averageGrayValue:
+            if abs(imgHSV[y][x][0]-searchHSV[0]) < errormarginH and imgHSV[y][x][1] > minS and imgHSV[y][x][2] > 0.12:
                validPixels[y][x] = True
                #mark for visualization
-               imgHSV[y][x][0] = searchHSV[0]
-               imgHSV[y][x][1] = 1
-               imgHSV[y][x][2] = 0.5
-    #toimage(matplotlib.colors.hsv_to_rgb(imgHSV)).show()         
+               #imgHSV[y][x][0] = 0
+               #imgHSV[y][x][1] = 1
+               #imgHSV[y][x][2] = 0.5
+            #else: 
+              #  imgHSV[y][x][2] = 0
+    #display(Image.fromarray(np.uint8(validPixels*255)))        
 
     #calculate histograms of the valid pixels by projecting rows and coloumns
-    bucketReduction = 30
 
     #rows
     rdir = np.apply_over_axes(np.sum, validPixels, [1]).ravel()
-    rdirReduced = np.zeros([int(imgHSV.shape[0]/bucketReduction)+1])
-    for r in range(imgHSV.shape[0]):
-        rdirReduced[int(r/bucketReduction)] += rdir[r]
+    rdir= gaussian_filter(rdir, sigma=5)
 
     #coloums  
     cdir = np.apply_over_axes(np.sum, validPixels, [0]).ravel()
-    cdirReduced = np.zeros([int(imgHSV.shape[1]/bucketReduction)+1])
-    for c in range(imgHSV.shape[1]):
-        cdirReduced[int(c/bucketReduction)] += cdir[c]
+    cdir= gaussian_filter(cdir, sigma=5)
         
-    # plt.plot(rdir)
-    # plt.plot(cdir)
-    # plt.xlabel('X-Coordinate')
-    # plt.grid(True)
-    # plt.show()
+#    plt.plot(rdir)
+#    plt.plot(cdir)
+#    plt.xlabel('X-Coordinate')
+#    plt.grid(True)
+#    plt.show()
          
-    if np.sum(rdirReduced)+np.sum(cdirReduced) ==0:
+    if np.sum(rdir)+np.sum(cdir) ==0:
         print("did not find a peak")
         return None
       
@@ -150,8 +144,8 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS, specialRule=True):
     #for r in range(rdir.shape[0]):
     #rdir[x]
        
-    rowMax = int(np.argmax(rdirReduced) * bucketReduction)
-    columnMax = int(np.argmax(cdirReduced) * bucketReduction)
+    rowMax = int(np.argmax(rdir))
+    columnMax = int(np.argmax(cdir))
     print("Maimumx r,c:"+str((rowMax, columnMax)))
     return (rowMax, columnMax)
  
@@ -266,7 +260,7 @@ def ocr(digitsRGB):
         for r in range(digitRGB.shape[0]):
             for c in range(digitRGB.shape[1]):
                 if digitValue>100:
-                    if np.sum(digitRGB[r][c][:]) > 270:#everything bright to white
+                    if np.sum(digitRGB[r][c][:]) > 250:#everything bright to white
                         digitBinary[r][c] = 255
                 else:
                     digitHSV= matplotlib.colors.rgb_to_hsv(digitRGB)
@@ -286,6 +280,7 @@ def ocr(digitsRGB):
             else:
                 foundWhite = True
         
+        display(Image.fromarray(np.uint8(digitBinary)))
         #toimage(digitBinary).show()    
         
         #todo detect low confidence     
@@ -326,7 +321,7 @@ def segmentDigits(whiteRect, segmentRGB, draw):
     stepSize = int(width / numberOfDigits)
     xLeftBorder = whiteRect.left+stepSize*2
     
-    toimage(segmentRGB[whiteRect.top : whiteRect.bottom, whiteRect.left : whiteRect.right]).show()
+    #toimage(segmentRGB[whiteRect.top : whiteRect.bottom, whiteRect.left : whiteRect.right]).show()
     for x in range(whiteRect.left, whiteRect.right, stepSize):
         # draw.line(
 #             (cornerSegment.x + x,
@@ -374,6 +369,18 @@ def loadLast():
     last_date = datetime.datetime(last_date[0],last_date[1],last_date[2],last_date[3],last_date[4]);
     return last_date, lastvalidnumber
     
+def whiteBalance(sourceRGB, destRGB):
+    #white balance so that the average value is as defined
+    averageRGB = [sourceRGB[:, :, i].mean() for i in range(3)]
+    print("average RGB "+str(averageRGB))
+    
+    global averageGrayValue 
+    averageGrayValue=127
+    wbCorrection = np.divide([averageGrayValue, averageGrayValue, averageGrayValue], averageRGB)#average 0.5 rgb value
+    print("WB: "+str(wbCorrection))
+    destRGB[:,:] = np.multiply(destRGB[:,:], wbCorrection)
+    return destRGB
+    
     
 def getStringFromImage(path):
     rgbOrigPIL= Image.open(path)
@@ -387,15 +394,7 @@ def getStringFromImage(path):
     print(str(reductionWidth*100)+"%x"+str(reductionHeight*100)+"% image size reduction")
     rgb = np.array(rgbOrig[int(rgbOrig.shape[0]*reductionHeight/2):int(rgbOrig.shape[0]*(1-reductionHeight/2)), int(rgbOrig.shape[1]*reductionWidth/2):int(rgbOrig.shape[1]*(1-reductionWidth/2)),:], copy=True) 
     print("Scaled dimension: "+str(rgb.shape))
-    #white balance so that the average value is as defined
-    averageRGB = [rgb[:, :, i].mean() for i in range(3)]
-    print("average RGB"+str(averageRGB))
-    
-    global averageGrayValue 
-    averageGrayValue=0.5
-    wbCorrection = np.divide([averageGrayValue, averageGrayValue, averageGrayValue], averageRGB)#average 0.5 rgb value
-    print("WB: "+str(wbCorrection))
-    rgb[:,:] = np.multiply(rgb[:,:], wbCorrection)
+    whiteBalance(rgb)
     
     #correctedRGB= matplotlib.colors.hsv_to_rgb(imgHSV)
     #pilImage = Image.fromarray(rgbOrig, mode='RGB')
