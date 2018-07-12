@@ -26,7 +26,7 @@ plt.xlabel("Value")
 plt.ylabel("Frequency")
 plt.show()
 #%% Calcualte scale space
-scaleSpaceImageHSV = matplotlib.colors.rgb_to_hsv(cf.scaleSpace(rgb,2))
+scaleSpaceImageHSV = matplotlib.colors.rgb_to_hsv(cf.scaleSpace(rgb,2)) #53ms per call
 
 #%% filter saturated colors and apply boundaries
 saturated = np.zeros_like(rgb)
@@ -59,9 +59,9 @@ rgb = rgb[:, boundaries[2]:boundaries[3], :]
 #yellow = matplotlib.colors.rgb_to_hsv((127,127,0))
 saturatedHSV = matplotlib.colors.rgb_to_hsv(saturated)
 #saturatedHSV = matplotlib.colors.rgb_to_hsv(cf.scaleSpace(matplotlib.colors.hsv_to_rgb(saturatedHSV),2))
-display(Image.fromarray(np.uint8(matplotlib.colors.hsv_to_rgb(saturatedHSV)))) 
-yellowCenter = cf.findMaximumColor(saturatedHSV,(127,127,0),errormarginH=0.02,minS=0.3)
-yellowCenter=(yellowCenter[0]+yellowCorrection[0],yellowCenter[1]+yellowCorrection[1])
+#display(Image.fromarray(np.uint8(matplotlib.colors.hsv_to_rgb(saturatedHSV)))) 
+yellowCenter = cf.findMaximumColor(saturatedHSV,(127,127,0),errormarginH=0.02,minS=0.3) #838ms! per call
+yellowCenter = (yellowCenter[0]+yellowCorrection[0],yellowCenter[1]+yellowCorrection[1])
 blueCenter = cf.findMaximumColor(saturatedHSV,(0,102,147),errormarginH=0.2,minS=0.2)
 blueCenter=(blueCenter[0]+blueCorrection[0],blueCenter[1]+blueCorrection[1])
 
