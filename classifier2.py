@@ -86,44 +86,64 @@ rotatedRGB.rotate(angle, resample=Image.BILINEAR, center=yellowCenter)
 display(rotatedRGB)
 
 rotatedHSV = matplotlib.colors.rgb_to_hsv(rotatedRGB)
+rotatedHSV[:,:,2] /= 255
 
 #%% find the interesting segment and fetch the digits
-green = matplotlib.colors.rgb_to_hsv((0.56,0.64,0.39))
+green = matplotlib.colors.rgb_to_hsv((0.56,0.64,0.36))[0]
 print(green)
-green= green[0]
-gaussHue = gaussian_filter(rotatedHSV[:,:,0], sigma=4) 
-#display(Image.fromarray(np.uint8(gaussHue*255)))
-
-r = yellowCenter[0]
-left = yellowCenter[1]
+#average values orthogonal to interesting line
+averageWidth=26
+averageHue = rotatedHSV[yellowCenter[0]-int(averageWidth/2) : yellowCenter[0]+int(averageWidth/2),
+                      yellowCenter[1]+40:yellowCenter[1]+120,
+                      :]
+#display(Image.fromarray(np.uint8(averageHue*255)))
+averageHue = np.sum(averageHue, axis=0)/averageWidth #average pixels
+#look for left green border
 distanceGreen = []
 for offc in range(0, 80):
-    c = yellowCenter[1]+40+offc
-    if rotatedHSV[r][c][1]>0.2 and rotatedHSV[r][c][2]>0.5:
-        distanceGreen.append(abs(gaussHue[r][c]-green))
-    
-left = yellowCenter[1]+40+np.argmin(distanceGreen)+10
-plt.plot(distanceGreen)
-plt.xlabel("Value")
-plt.ylabel("Frequency")
+    c = yellowCenter[1]+offc
+    if averageHue[offc][1]>0.3 and averageHue[offc][2]>0.3:
+        distanceGreen.append(abs(averageHue[offc]-green))
 
-r = blueCenter[0]-10
-right = blueCenter[1]
-distanceGreen = []
-for offc in range(0, 150):
-    c = blueCenter[1]-40-offc
-    if rotatedHSV[r][c][1]>0.2 and rotatedHSV[r][c][2]>0.4:
-        distanceGreen.append(abs(gaussHue[r][c]-green))
-    
-right = blueCenter[1]-40-np.argmin(distanceGreen)-10
+plt.plot(averageHue[:,:])
 plt.plot(distanceGreen)
 plt.xlabel("Value")
-plt.ylabel("Frequency")
+plt.ylabel("Distance")
 plt.show()
-#interestingSegment = cf.findRectangle(rotatedRGB)
+
+left = yellowCenter[1]+40+np.argmin(distanceGreen)+10
+
+
+#%%right green border
+averageHue = rotatedHSV[blueCenter[0]-int(averageWidth/2) : blueCenter[0]+int(averageWidth/2),
+                      blueCenter[1]-130:blueCenter[1]-20,
+                      :]
+
+#display(Image.fromarray(np.uint8(averageHue*255)))
+averageHue = np.sum(averageHue, axis=0)/averageWidth #average pixels
+#plt.plot(averageHue[:,:])
+#plt.xlabel("Value")
+#plt.ylabel("Distance")
+#plt.show()
+
+r = blueCenter[0]
+distanceGreen = []
+for offc in range(-110, 0):
+    c = blueCenter[1]+offc
+    if averageHue[offc][1]>0.2 and averageHue[offc][2]>0.5:
+        distanceGreen.append(abs(averageHue[offc][0]-green))
+    else:
+        distanceGreen.append(float('inf'))
+    
+#plt.plot(distanceGreen)
+#plt.plot(averageHue)
+#plt.xlabel("Value")
+#plt.ylabel("Distance")
+#plt.show()
+right = blueCenter[1]-20+np.argmin(distanceGreen)-110
+
 RectTupleClass = namedtuple("Rectangle", "left right top bottom")
 interestingSegment = RectTupleClass(left, right, yellowCenter[0]-25, yellowCenter[0]+20)
-print(interestingSegment)
 draw = ImageDraw.Draw(rotatedRGB)
 draw.rectangle(
         (interestingSegment.left,
