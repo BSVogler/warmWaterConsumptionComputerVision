@@ -122,11 +122,11 @@ def findMaximumColor(imgHSV, searchRGB, errormarginH, minS):
     #calculate histograms of the valid pixels by projecting rows and coloumns
 
     #rows
-    rdir = np.apply_over_axes(np.sum, validPixels, [1]).ravel()
+    rdir = validPixels.sum(axis=1)
     rdir= gaussian_filter(rdir, sigma=5)
 
     #coloums  
-    cdir = np.apply_over_axes(np.sum, validPixels, [0]).ravel()
+    cdir = validPixels.sum(axis=0)
     cdir= gaussian_filter(cdir, sigma=5)
         
 #    plt.plot(rdir)
