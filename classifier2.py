@@ -10,12 +10,14 @@ from collections import namedtuple
 import datetime
 import scipy.ndimage as ndimage
 from scipy.ndimage.filters import gaussian_filter
+import pytesseract
 
+verbose = False
 def getMeterFromImage(filename):
     #%%
     yellowCorrection = (0,0)
     blueCorrection = (0,0)
-    rgbOrigPIL= Image.open(path)
+    rgbOrigPIL= Image.open(filename)
     rgbOrigPIL.load()
     rgb = np.asarray(rgbOrigPIL, dtype="float32")[100:-300,200:-380,:]
     hsv = matplotlib.colors.rgb_to_hsv(rgb)
@@ -30,7 +32,8 @@ def getMeterFromImage(filename):
     def scaleSpace(image, sigma):
         #scale space
         #rgbScaleSpace=np.zeros_like(image)
-        print("Scale space transformation")
+        if verbose:
+            print("Scale space transformation")
         rgbScaleSpace = ndimage.gaussian_filter(image, sigma=(sigma, sigma, 0), order=0)
     
         return rgbScaleSpace
@@ -52,34 +55,38 @@ def getMeterFromImage(filename):
                     boundaries[2] = c
                 if c > boundaries[3]:
                     boundaries[3] = c
-    
-    print(boundaries)
+    if verbose:
+        print(boundaries)
     #only apply boundaries in x direction, this is needed because of the later rotation
     saturated = saturated[:, boundaries[2]:boundaries[3], :]
     
     def whiteBalance(sourceRGB, destRGB):
         #white balance so that the average value is as defined
         averageRGB = [sourceRGB[:, :, i].mean() for i in range(3)]
-        print("average RGB "+str(averageRGB))
+        if verbose:
+            print("average RGB "+str(averageRGB))
     
         global averageGrayValue
         averageGrayValue=127
         wbCorrection = np.divide([averageGrayValue, averageGrayValue, averageGrayValue], averageRGB)#average 0.5 rgb value
-        print("WB: "+str(wbCorrection))
+        if verbose:
+            print("WB: "+str(wbCorrection))
         destRGB[:,:] = np.multiply(destRGB[:,:], wbCorrection)
         return destRGB
     
     whiteBalance(sourceRGB=rgb, destRGB=saturated)
     #scaleSpaceImageHSV = scaleSpaceImageHSV[:, boundaries[2]:boundaries[3], :]
     
-    display(Image.fromarray(np.uint8(saturated)))
+    if verbose:
+        display(Image.fromarray(np.uint8(saturated)))
     hsv = hsv[:, boundaries[2]:boundaries[3], :]
     rgb = rgb[:, boundaries[2]:boundaries[3], :]
     
     #%% find rightmost yellow and blue pixel
     def findMaximumColor(imgHSV, searchRGB, errormarginH, minS):
         '''find peak position in image using scale space'''
-        print("calculating histogram to find the color peak pos " +str(searchRGB))
+        if verbose:
+            print("calculating histogram to find the color peak pos " +str(searchRGB))
         searchHSV = matplotlib.colors.rgb_to_hsv(searchRGB);
     
         #search for valid pixels (pixels matching search criteria)
@@ -124,7 +131,8 @@ def getMeterFromImage(filename):
     
         rowMax = int(np.argmax(rdir))
         columnMax = int(np.argmax(cdir))
-        print("Maimumx r,c:"+str((rowMax, columnMax)))
+        if verbose:
+            print("Maimumx r,c:"+str((rowMax, columnMax)))
         return (rowMax, columnMax)
     
     #yellow = matplotlib.colors.rgb_to_hsv((127,127,0))
@@ -144,7 +152,8 @@ def getMeterFromImage(filename):
     #        foundyellow=True
             
     angle = -math.degrees(math.atan((abs(yellowCenter[0]-blueCenter[0]))/(abs(yellowCenter[1]-blueCenter[1]))))
-    print("Rotate by "+str(angle)+"°")
+    if verbose:
+        print("Rotate by "+str(angle)+"°")
     
     #blueCenter[0]=yellowCenter[0] # after rotation they have the same row
     #%% apply rotation
@@ -166,14 +175,14 @@ def getMeterFromImage(filename):
         
     blueCenterRotated = rotate2Dvector(blueCenter, math.radians(angle), yellowCenter)
     blueCenterRotated = [int(blueCenterRotated[0]),int(blueCenterRotated[1])]
-    print(blueCenter)
     draw = ImageDraw.Draw(rotatedRGB)
     #highlight centers
     
     draw.rectangle((yellowCenter[1], yellowCenter[0], yellowCenter[1]+2, yellowCenter[0]+2), outline="red", fill=None)
     draw.rectangle((blueCenterRotated[1], blueCenterRotated[0], blueCenterRotated[1]+2, blueCenterRotated[0]+2), outline="blue", fill=None)
     
-    display(rotatedRGB)
+    if verbose:
+        display(rotatedRGB)
     
     rotatedHSV = matplotlib.colors.rgb_to_hsv(rotatedRGB)
     rotatedHSV[:,:,2] /= 255
@@ -241,10 +250,10 @@ def getMeterFromImage(filename):
             interestingSegment.right+1,
             interestingSegment.bottom+1), outline="green", fill=None
         )
-    display(rotatedRGB)
+    if verbose:
+        display(rotatedRGB)
     
     #%%
-    import pytesseract
     def ocr(digitsRGB):
         '''
     
@@ -286,47 +295,50 @@ def getMeterFromImage(filename):
                 else:
                     foundWhite = True
     
-            display(Image.fromarray(np.uint8(digitBinary)))
+            if verbose:
+                display(Image.fromarray(np.uint8(digitBinary)))
             #toimage(digitBinary).show()
     
-
             #you need to change the line in tesseract/3.05.02/share/tessdata/configs/tsv to "tessedit_pageseg_mode 10"
-            digitasNumber = pytesseract.image_to_data(digitBinary[5:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789', output_type="dict")
-            if digitasNumber['conf'][4] < 60:
+            #digitasNumber = pytesseract.image_to_data(digitBinary[0:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789', output_type="dict")
+            digitasNumber = pytesseract.image_to_string(digitBinary[0:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789')
+            #print(digitasNumber)
+            #confidence = digitasNumber['conf'][-1]
+            #digitasNumber = digitasNumber['text'][-1]
+            confidence = 100
+            if confidence < 30:
                 print("confidence of digit with value "+str(digitValue)+" too low")
                 digitasNumber = 0
             else:
-                digitasNumber = int(digitasNumber['text'][4])
-            if digitasNumber == "":
-                digitasNumber = 0
-            else:
-                digitasNumber = int(digitasNumber)
+                if digitasNumber == "":
+                    digitasNumber = 0
+                else:
+                    digitasNumber = int(digitasNumber)
             asValue += int(digitasNumber*digitValue)
             digitValue = digitValue//10#using int for numerical stability
         asValue /= 1000
-        print(asValue)
         return asValue
     
-    def segmentDigits(whiteRect, segmentRGB, draw):
+    def segmentDigits(rect, segmentRGB, draw):
         '''
         segment digits from rectangle
-        :param whiteRect:
+        :param rect:
         :param segmentRGB:
         :param draw:
         :return:
         '''
         digits = []
         numberOfDigits = 8
-        width = whiteRect.right - whiteRect.left
+        width = rect.right - rect.left
         if width < 5:
             print("Width of segment is too small. Segmentation failed.")
         digitWidth = int(width / numberOfDigits)
-        xLeftBorder = whiteRect.left+digitWidth*2 #skip first wo digits
+        xLeftBorder = rect.left+digitWidth*2 #skip first wo digits
     
-        #toimage(segmentRGB[whiteRect.top : whiteRect.bottom, whiteRect.left : whiteRect.right]).show()
-        for x in range(whiteRect.left, whiteRect.right, digitWidth):
-            if x > whiteRect.left+digitWidth*2:#skip first line and first two digit
-                digit = segmentRGB[whiteRect.top : whiteRect.bottom, xLeftBorder+13 : x]#little bit of offset because of the border
+        #toimage(segmentRGB[rect.top : rect.bottom, rect.left : rect.right]).show()
+        for x in range(rect.left, rect.right, digitWidth):
+            if x > rect.left+digitWidth*2:#skip first line and first two digit
+                digit = segmentRGB[rect.top : rect.bottom, xLeftBorder+13 : x]#little bit of offset because of the border
                 digits.append(digit)
                 #toimage(digit).show()
                 xLeftBorder = x
@@ -334,8 +346,9 @@ def getMeterFromImage(filename):
         return digits
     
     digits = segmentDigits(interestingSegment,np.asarray(rotatedRGB, dtype="float32"), draw)
-    for d in digits:
-        display(Image.fromarray(np.uint8(d)))
+    if verbose:
+        for d in digits:
+            display(Image.fromarray(np.uint8(d)))
     return ocr(digits)
 
 def loadLast():
@@ -344,27 +357,27 @@ def loadLast():
  #        while f.read(1) != b"\n":   # Until EOL is found...
  #            f.seek(-2, os.SEEK_CUR) # ...jump back the read byte plus one more.
  #        last= f.readline()         # Read last line.
-
+#%%
     import subprocess
-    last = str(subprocess.check_output(['tail', '-1', "numbers.txt"]))[2:]
-
+    last = str(subprocess.check_output(['tail', '-1', "numbers.csv"]))[2:]
     last_date = []
     dStr = last[:last.rfind('/')]
     dStr = dStr[dStr.rfind('/')+1:]
     last_date.append(int(dStr[:dStr.find(',')]))#year
-    dStr = dStr[dStr.find('-')+1:]
+    dStr = dStr[dStr.find(',')+1:]
     last_date.append(int(dStr[:dStr.find(',')]))#month
-    dStr = dStr[dStr.find('-')+1:]
+    dStr = dStr[dStr.find(',')+1:]
     last_date.append(int(dStr[:dStr.find(',')]))#day
-    dStr = dStr[dStr.find('-')+1:]
+    dStr = dStr[dStr.find(',')+1:]
     last_date.append(int(dStr[:dStr.find(',')]))#hour
-    dStr = dStr[dStr.find('-')+1:]
+    dStr = dStr[dStr.find(',')+1:]
     last_date.append(int(dStr[:dStr.find(',')]))#minute
+    dStr = dStr[dStr.find(',')+1:]
 
-    dStr = dStr[dStr.find(',')+1:-2]
-    lastvalidnumber = float(dStr)
+    dStr = dStr[:-2]
+    lastvalidMeter = float(dStr)
     last_date = datetime.datetime(last_date[0],last_date[1],last_date[2],last_date[3],last_date[4]);
-    return last_date, lastvalidnumber
+    return last_date, lastvalidMeter
 
 def save(date,number):
     with open("numbers.csv", "a") as myfile:
@@ -376,27 +389,46 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         path = sys.argv[1]
     
-    #get date from path
-    date = []
-    dStr = path[:path.rfind('/')]
-    print(dStr)
-    dStr = dStr[dStr.rfind('/')+1:]
-    print(dStr)
-    date.append(int(dStr[:dStr.find('-')]))#year
-    dStr = dStr[dStr.find('-')+1:]
-    date.append(int(dStr[:dStr.find('-')]))#month
-    dStr = dStr[dStr.find('-')+1:]
-    date.append(int(dStr))#day
-    date.append(int(path[path.rfind('/')+1 : path.rfind('_')]))#hour
-    date.append(int(path[path.rfind('_')+1 : path.rfind('.')]))#minute
+    last_date, lastvalidMeter = loadLast()
+    print(last_date)
+    print(lastvalidMeter)
     
-    date = datetime.datetime(*date)#date from list into datetime object
-    last_date, lastvalidnumber = loadLast()
-    if date > last_date:
-        newNumber = getMeterFromImage(path)
-        if newNumber < lastvalidnumber:
-            print("OCR returned impossible result. Rejected.")
+    def processFile(filepath):
+        global lastvalidMeter
+        global last_date
+        
+        #get date from path
+        date = []
+        dStr = filepath[:filepath.rfind('/')]
+        dStr = dStr[dStr.rfind('/')+1:]
+        date.append(int(dStr[:dStr.find('-')]))#year
+        dStr = dStr[dStr.find('-')+1:]
+        date.append(int(dStr[:dStr.find('-')]))#month
+        dStr = dStr[dStr.find('-')+1:]
+        date.append(int(dStr))#day
+        date.append(int(filepath[filepath.rfind('/')+1 : filepath.rfind('_')]))#hour
+        date.append(int(filepath[filepath.rfind('_')+1 : filepath.rfind('.')]))#minute
+        
+        date = datetime.datetime(*date)#date from list into datetime object
+        if True:
+        #if date > last_date:
+            newNumber = getMeterFromImage(filepath)
+            print(str(date) + ": " + str(newNumber))
+            if newNumber < lastvalidMeter:
+                print("OCR returned impossible result. Rejected.")
+            else:
+                save(date,newNumber)
+                lastvalidMeter = newNumber
+                last_date = date
         else:
-            save(date,newNumber)
-    else:
-        print("input is older then last valid data")
+            print("filepath "+filepath+" is older then last valid data")
+            
+    import os
+
+    root_dir = './images/'
+
+    for directory, subdirectories, files in os.walk(root_dir):
+        for file in files:
+            filepath = os.path.join(directory, file)
+            if ".jpg" in filepath:
+                processFile(filepath)
