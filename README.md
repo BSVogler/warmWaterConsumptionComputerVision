@@ -30,6 +30,7 @@ Then I installed them on the side (Auflichtbeleuchtung). When they are installed
 
 For fixating the whole construction you can use cardboard, paper, wood and 3d printed stuff. I just used tape to fixate the whole thing to the wall.
 
+![hardware installation sketch](./constructionsketch.png)
 ## Costs
 You can use a different computer and a different camera. Note that the script for image capturing is inteded to run on a raspberry pi. I got my raspberry pi for free via the career network careerloft.
 
