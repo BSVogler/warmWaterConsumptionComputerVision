@@ -9,17 +9,17 @@ from PIL import Image, ImageFont, ImageDraw, ImageEnhance
 from collections import namedtuple
 import datetime
 import scipy.ndimage as ndimage
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.filters import gaussian_filter, gaussian_filter1d
 import pytesseract
 
-verbose = False
+verbose = True
+#%%
 def getMeterFromImage(filename):
-    #%%
     yellowCorrection = (0,0)
     blueCorrection = (0,0)
     rgbOrigPIL= Image.open(filename)
     rgbOrigPIL.load()
-    rgb = np.asarray(rgbOrigPIL, dtype="float32")[100:-300,200:-380,:]
+    rgb = np.asarray(rgbOrigPIL, dtype="float32")[150:-300,250:-310,:]
     hsv = matplotlib.colors.rgb_to_hsv(rgb)
     
     #%% show saturation distribution
@@ -37,28 +37,6 @@ def getMeterFromImage(filename):
         rgbScaleSpace = ndimage.gaussian_filter(image, sigma=(sigma, sigma, 0), order=0)
     
         return rgbScaleSpace
-    scaleSpaceImageHSV = matplotlib.colors.rgb_to_hsv(scaleSpace(rgb,2)) #53ms per call, intel 49ms
-    
-    #%% filter saturated colors and apply boundaries
-    saturated = np.zeros_like(rgb)
-    boundaries = [hsv.shape[0], 0, hsv.shape[1], 0]
-    
-    for r in range(saturated.shape[0]):
-        for c in range(saturated.shape[1]):
-            if (scaleSpaceImageHSV[r,c,1] > 0.4 and scaleSpaceImageHSV[r,c,2] > 0.3):
-                saturated[r,c] = rgb[r,c]
-                if r < boundaries[0]:
-                    boundaries[0] = r
-                if r > boundaries[1]:
-                    boundaries[1] = r
-                if c < boundaries[2]:
-                    boundaries[2] = c
-                if c > boundaries[3]:
-                    boundaries[3] = c
-    if verbose:
-        print(boundaries)
-    #only apply boundaries in x direction, this is needed because of the later rotation
-    saturated = saturated[:, boundaries[2]:boundaries[3], :]
     
     def whiteBalance(sourceRGB, destRGB):
         #white balance so that the average value is as defined
@@ -74,55 +52,40 @@ def getMeterFromImage(filename):
         destRGB[:,:] = np.multiply(destRGB[:,:], wbCorrection)
         return destRGB
     
-    whiteBalance(sourceRGB=rgb, destRGB=saturated)
+    #whiteBalance(sourceRGB=rgb, destRGB=saturated)
     #scaleSpaceImageHSV = scaleSpaceImageHSV[:, boundaries[2]:boundaries[3], :]
     
     if verbose:
-        display(Image.fromarray(np.uint8(saturated)))
-    hsv = hsv[:, boundaries[2]:boundaries[3], :]
-    rgb = rgb[:, boundaries[2]:boundaries[3], :]
+        display(Image.fromarray(np.uint8(rgb)))
+    #hsv = hsv[:, boundaries[2]:boundaries[3], :]
+   # rgb = rgb[:, boundaries[2]:boundaries[3], :]
     
     #%% find rightmost yellow and blue pixel
     def findMaximumColor(imgHSV, searchRGB, errormarginH, minS):
         '''find peak position in image using scale space'''
         if verbose:
             print("calculating histogram to find the color peak pos " +str(searchRGB))
-        searchHSV = matplotlib.colors.rgb_to_hsv(searchRGB);
+        searchH = matplotlib.colors.rgb_to_hsv(searchRGB)[0];
     
+        imgH = imgHSV[:,:,0]
+        imgS = imgHSV[:,:,1]
         #search for valid pixels (pixels matching search criteria)
-        validPixels = np.zeros((imgHSV.shape[0], imgHSV.shape[1]), dtype=bool)
-        for y in range(imgHSV.shape[0]):
-            for x in range(imgHSV.shape[1]):
-                #if abs(scaledHSV[x][y][0]-yellowAreaHSV[0]) < 0.07 and scaledHSV[x][y][1] > 0.3 and scaledHSV[x][y][2]<0.9 and scaledHSV[x][y][2]>0.3:
-                if abs(imgHSV[y][x][0]-searchHSV[0]) < errormarginH and imgHSV[y][x][1] > minS and imgHSV[y][x][2] > 0.12:
-                   validPixels[y][x] = True
-                   #mark for visualization
-                   #imgHSV[y][x][0] = 0
-                   #imgHSV[y][x][1] = 1
-                   #imgHSV[y][x][2] = 0.5
-                #else:
-                  #  imgHSV[y][x][2] = 0
-        #display(Image.fromarray(np.uint8(validPixels*255)))
+        validPixels = (abs(imgH-searchH) < errormarginH ).astype(bool) & (imgS > minS ).astype(bool)   
     
         #calculate histograms of the valid pixels by projecting rows and coloumns
-    
         #rows
         rdir = validPixels.sum(axis=1)
-        rdir= gaussian_filter(rdir, sigma=5)
+        rdir = gaussian_filter1d(rdir, sigma=8)
     
         #coloums
         cdir = validPixels.sum(axis=0)
-        cdir= gaussian_filter(cdir, sigma=5)
+        cdir = gaussian_filter1d(cdir, sigma=8)
     
-    #    plt.plot(rdir)
-    #    plt.plot(cdir)
-    #    plt.xlabel('X-Coordinate')
-    #    plt.grid(True)
-    #    plt.show()
-    
-        if np.sum(rdir)+np.sum(cdir) ==0:
-            print("did not find a peak")
-            return None
+        plt.plot(rdir)
+        plt.plot(cdir)
+        plt.xlabel('X/Y-Coordinate')
+        plt.grid(True)
+        plt.show()
     
         #special rule
         #find low before max, but what defines the low?
@@ -135,21 +98,10 @@ def getMeterFromImage(filename):
             print("Maimumx r,c:"+str((rowMax, columnMax)))
         return (rowMax, columnMax)
     
-    #yellow = matplotlib.colors.rgb_to_hsv((127,127,0))
-    saturatedHSV = matplotlib.colors.rgb_to_hsv(saturated)
-    #saturatedHSV = matplotlib.colors.rgb_to_hsv(cf.scaleSpace(matplotlib.colors.hsv_to_rgb(saturatedHSV),2))
-    #display(Image.fromarray(np.uint8(matplotlib.colors.hsv_to_rgb(saturatedHSV)))) 
-    yellowCenter = findMaximumColor(saturatedHSV,(153,197,0), errormarginH=0.02, minS=0.3) #838ms! per call, intel 806
+    yellowCenter = findMaximumColor(hsv,(214,163,33), errormarginH=0.04, minS=0.3) #838ms! per call, intel 806
     yellowCenter = (yellowCenter[0]+yellowCorrection[0], yellowCenter[1]+yellowCorrection[1])
-    blueCenter = findMaximumColor(saturatedHSV,(58,135,165), errormarginH=0.2, minS=0.2)
+    blueCenter = findMaximumColor(hsv,(12,41,94), errormarginH=0.03, minS=0.6)
     blueCenter = [blueCenter[0]+blueCorrection[0], blueCenter[1]+blueCorrection[1]]
-    
-    #foundyellow = False
-    #for r in range(hsv.shape[0]):
-    #    for c in range(hsv.shape[1]):
-    #        if foundyellow and abs(hsv[r,c,0]-yellow[0]) < 0.1:
-                
-    #        foundyellow=True
             
     angle = -math.degrees(math.atan((abs(yellowCenter[0]-blueCenter[0]))/(abs(yellowCenter[1]-blueCenter[1]))))
     if verbose:
@@ -188,11 +140,11 @@ def getMeterFromImage(filename):
     rotatedHSV[:,:,2] /= 255
     
     #%% find the interesting segment and fetch the digits
-    green = matplotlib.colors.rgb_to_hsv((0.56,0.64,0.36))[0]
+    green = matplotlib.colors.rgb_to_hsv((0.35,0.4,0.12))[0]
     #average values orthogonal to interesting line
     averageWidth = 28
     averageHue = rotatedHSV[yellowCenter[0]-int(averageWidth/2) : yellowCenter[0]+int(averageWidth/2),
-                          yellowCenter[1]+40:yellowCenter[1]+120,
+                          yellowCenter[1]+13:yellowCenter[1]+93,
                           :]
     #display(Image.fromarray(np.uint8(averageHue*255)))
     averageHue = np.sum(averageHue, axis=0)/averageWidth #average pixels
@@ -200,16 +152,18 @@ def getMeterFromImage(filename):
     distanceHue = []
     for offc in range(0, 80):
         c = yellowCenter[1]+offc
-        if averageHue[offc][1]>0.3 and averageHue[offc][2]>0.3:
-            distanceHue.append(abs(averageHue[offc]-green))
+        if averageHue[offc][1] > 0.22 and averageHue[offc][2] > 0.4:
+            distanceHue.append(abs(averageHue[offc][0]-green))
+        else:
+            distanceHue.append(float('inf'))
+            
+#    plt.plot(averageHue[:,:])
+#    plt.plot(distanceHue)
+#    plt.xlabel("Value")
+#    plt.ylabel("Distance")
+#    plt.show()
     
-    #plt.plot(averageHue[:,:])
-    #plt.plot(distanceHue)
-    #plt.xlabel("Value")
-    #plt.ylabel("Distance")
-    #plt.show()
-    
-    left = yellowCenter[1]+40+np.argmin(distanceHue)
+    left = yellowCenter[1]+13+np.argmin(distanceHue)
     
     #right side
     rangeLeft = -80
@@ -229,20 +183,31 @@ def getMeterFromImage(filename):
     
     for offc in range(rangeLeft, 0):
         c = blueCenterRotated[1]+offc
-        if averageHue[offc][1]>0.2 and averageHue[offc][2]>0.5:
+        if averageHue[offc][1]>0.4 and averageHue[offc][2]>0.35:
             distanceHue.append(abs(averageHue[offc][0]-green))
         else:
             distanceHue.append(float('inf'))
         
-    #plt.plot(distanceHue)
-    #plt.plot(averageHue)
-    #plt.xlabel("Value")
-    #plt.ylabel("Distance")
-    #plt.show()
+    plt.plot(averageHue[:,0])
+    plt.plot(distanceHue)
+    plt.xlabel("Pixel X")
+    plt.ylabel("Hue")
+    plt.show()
+    
+    plt.plot(averageHue[:,1])
+    plt.xlabel("Pixel X")
+    plt.ylabel("Saturation")
+    plt.show()
+    
+    plt.plot(averageHue[:,2])
+    plt.xlabel("Pixel X")
+    plt.ylabel("Value")
+    plt.show()
+    
     right = blueCenterRotated[1]+np.argmin(distanceHue)+rangeLeft
     
     RectTupleClass = namedtuple("Rectangle", "left right top bottom")
-    interestingSegment = RectTupleClass(left, right, yellowCenter[0]-15, yellowCenter[0]+33)
+    interestingSegment = RectTupleClass(left, right, yellowCenter[0]-20, yellowCenter[0]+30)
     draw = ImageDraw.Draw(rotatedRGB)
     draw.rectangle(
             (interestingSegment.left-1,
@@ -250,74 +215,8 @@ def getMeterFromImage(filename):
             interestingSegment.right+1,
             interestingSegment.bottom+1), outline="green", fill=None
         )
-    if verbose:
+    if True:
         display(rotatedRGB)
-    
-    #%%
-    def ocr(digitsRGB):
-        '''
-    
-        performs ocr using tesseract, input is list of numpy images
-        todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
-    
-        :param digitsRGB:
-        :return:
-        '''
-        digitValue = int(1e5) # value of the next digit
-        asValue = int(0) #resulting value
-    
-        for digitRGB in digitsRGB:
-    #        plt.hist(digitRGB[:,:,2],bins=256)
-    #        plt.show()
-            #TODO kontrastnormierung vornehmen
-            #kumulatives histogram, grauwerte unter 5% und über 95% ignorieren VGL MVTec vorlesung Folie 84
-            digitBinary = np.zeros([digitRGB.shape[0],digitRGB.shape[1]])
-            for r in range(digitRGB.shape[0]):
-                for c in range(digitRGB.shape[1]):
-                    if digitValue > 100:
-                        if np.sum(digitRGB[r][c][:]) > 128*3:#everything bright to white
-                            digitBinary[r][c] = 255
-                    else:
-                        digitHSV= matplotlib.colors.rgb_to_hsv(digitRGB)
-                        if digitHSV[r][c][1] < 0.27 or abs(0.5-digitHSV[r][c][0]) < 0.4: #everything with low saturation or non red is white
-                            digitBinary[r][c] = 255
-                    #digitBinary[r][c] = np.sum(digitRGB[r][c][:])/3
-            #Image.fromarray(np.uint8(digitBinary), 'L').show()
-    
-    
-            #remove black bottom border for better ocr
-            foundWhite=False
-            bottomBorder=digitRGB.shape[0]-1
-            middle = digitRGB.shape[1]//2
-            while (not foundWhite):
-                if digitBinary[bottomBorder][middle]==0:
-                    bottomBorder -= 1
-                else:
-                    foundWhite = True
-    
-            if verbose:
-                display(Image.fromarray(np.uint8(digitBinary)))
-            #toimage(digitBinary).show()
-    
-            #you need to change the line in tesseract/3.05.02/share/tessdata/configs/tsv to "tessedit_pageseg_mode 10"
-            #digitasNumber = pytesseract.image_to_data(digitBinary[0:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789', output_type="dict")
-            digitasNumber = pytesseract.image_to_string(digitBinary[0:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789')
-            #print(digitasNumber)
-            #confidence = digitasNumber['conf'][-1]
-            #digitasNumber = digitasNumber['text'][-1]
-            confidence = 100
-            if confidence < 30:
-                print("confidence of digit with value "+str(digitValue)+" too low")
-                digitasNumber = 0
-            else:
-                if digitasNumber == "":
-                    digitasNumber = 0
-                else:
-                    digitasNumber = int(digitasNumber)
-            asValue += int(digitasNumber*digitValue)
-            digitValue = digitValue//10#using int for numerical stability
-        asValue /= 1000
-        return asValue
     
     def segmentDigits(rect, segmentRGB, draw):
         '''
@@ -340,7 +239,6 @@ def getMeterFromImage(filename):
             if x > rect.left+digitWidth*2:#skip first line and first two digit
                 digit = segmentRGB[rect.top : rect.bottom, xLeftBorder+13 : x]#little bit of offset because of the border
                 digits.append(digit)
-                #toimage(digit).show()
                 xLeftBorder = x
     
         return digits
@@ -349,6 +247,72 @@ def getMeterFromImage(filename):
     if verbose:
         for d in digits:
             display(Image.fromarray(np.uint8(d)))
+            
+    #%%
+    def ocr(digitsRGB):
+        '''
+        performs ocr using tesseract, input is list of numpy images
+        todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
+    
+        :param digitsRGB:
+        :return:
+        '''
+        digitValue = int(1e5) # value of the next digit
+        asValue = int(0) #resulting value
+    
+        for digitRGB in digitsRGB:
+    #        plt.hist(digitRGB[:,:,2],bins=256)
+    #        plt.show()
+            #TODO kontrastnormierung vornehmen
+            #kumulatives histogram, grauwerte unter 5% und über 95% ignorieren VGL MVTec vorlesung Folie 84
+            digitBinary = np.zeros([digitRGB.shape[0],digitRGB.shape[1]])
+            for r in range(digitRGB.shape[0]):
+                for c in range(digitRGB.shape[1]):
+                    if digitValue > 100:
+                        if np.sum(digitRGB[r][c][:]) > 128*3:#everything bright to white
+                            digitBinary[r][c] = 255
+                    else:
+                        digitHSV= matplotlib.colors.rgb_to_hsv(digitRGB)
+                        if digitHSV[r][c][1] < 0.5 or abs(0.5-digitHSV[r][c][0]) < 0.4: #everything with low saturation or non red is white
+                            digitBinary[r][c] = 255
+                    #digitBinary[r][c] = np.sum(digitRGB[r][c][:])/3
+            #Image.fromarray(np.uint8(digitBinary), 'L').show()
+    
+    
+            #remove black bottom border for better ocr
+            foundWhite=False
+            bottomBorder=digitRGB.shape[0]-1
+            middle = digitRGB.shape[1]//2
+            while (not foundWhite):
+                if digitBinary[bottomBorder][middle]==0:
+                    bottomBorder -= 1
+                else:
+                    foundWhite = True
+    
+            if verbose:
+                display(Image.fromarray(np.uint8(digitBinary)))
+            #toimage(digitBinary).show()
+    
+            #you need to change the line in tesseract/3.05.02/share/tessdata/configs/tsv to "tessedit_pageseg_mode 10"
+            #digitasNumber = pytesseract.image_to_data(digitBinary[0:bottomBorder], config='-psm 10 -c tessedit_char_whitelist=0123456789', output_type="dict")
+            digitasNumber = pytesseract.image_to_string(digitBinary[0:bottomBorder], config='-psm 10 --oem 0 -c tessedit_char_whitelist=0123456789')
+            #print(digitasNumber)
+            #confidence = digitasNumber['conf'][-1]
+            #digitasNumber = digitasNumber['text'][-1]
+            confidence = 100
+            if confidence < 30:
+                print("confidence of digit with value "+str(digitValue)+" too low")
+                digitasNumber = 0
+            else:
+                if digitasNumber == "":
+                    digitasNumber = 0
+                else:
+                    digitasNumber = int(digitasNumber)
+            asValue += int(digitasNumber*digitValue)
+            digitValue = digitValue//10#using int for numerical stability
+        asValue /= 1000
+        return asValue
+            
     return ocr(digits)
 
 def loadLast():
@@ -383,52 +347,54 @@ def save(date,number):
     with open("numbers.csv", "a") as myfile:
         myfile.write(str(date.year)+","+str(date.month)+","+str(date.day)+","+str(date.hour)+","+str(date.minute) +","+str(number)+"\n")
 
+def processFile(filepath):
+    global lastvalidMeter
+    global last_date
+    
+    #get date from path
+    date = []
+    dStr = filepath[:filepath.rfind('/')]
+    dStr = dStr[dStr.rfind('/')+1:]
+    date.append(int(dStr[:dStr.find('-')]))#year
+    dStr = dStr[dStr.find('-')+1:]
+    date.append(int(dStr[:dStr.find('-')]))#month
+    dStr = dStr[dStr.find('-')+1:]
+    date.append(int(dStr))#day
+    date.append(int(filepath[filepath.rfind('/')+1 : filepath.rfind('_')]))#hour
+    date.append(int(filepath[filepath.rfind('_')+1 : filepath.rfind('.')]))#minute
+    
+    date = datetime.datetime(*date)#date from list into datetime object
+    if True:
+    #if date > last_date:
+        newNumber = getMeterFromImage(filepath)
+        print(str(date) + ": " + str(newNumber))
+        if newNumber < lastvalidMeter:
+            print("OCR returned impossible result. Rejected.")
+        else:
+            save(date,newNumber)
+            lastvalidMeter = newNumber
+            last_date = date
+    else:
+        print("filepath "+filepath+" is older then last valid data")
+            
 #%%
 if __name__ == '__main__':
-    path = "./images/2018-07-14/18_34.jpg"
+    path = "./images/2018-07-25/21_27.jpg"
     if len(sys.argv) > 1:
         path = sys.argv[1]
     
     last_date, lastvalidMeter = loadLast()
     print(last_date)
     print(lastvalidMeter)
-    
-    def processFile(filepath):
-        global lastvalidMeter
-        global last_date
-        
-        #get date from path
-        date = []
-        dStr = filepath[:filepath.rfind('/')]
-        dStr = dStr[dStr.rfind('/')+1:]
-        date.append(int(dStr[:dStr.find('-')]))#year
-        dStr = dStr[dStr.find('-')+1:]
-        date.append(int(dStr[:dStr.find('-')]))#month
-        dStr = dStr[dStr.find('-')+1:]
-        date.append(int(dStr))#day
-        date.append(int(filepath[filepath.rfind('/')+1 : filepath.rfind('_')]))#hour
-        date.append(int(filepath[filepath.rfind('_')+1 : filepath.rfind('.')]))#minute
-        
-        date = datetime.datetime(*date)#date from list into datetime object
-        if True:
-        #if date > last_date:
-            newNumber = getMeterFromImage(filepath)
-            print(str(date) + ": " + str(newNumber))
-            if newNumber < lastvalidMeter:
-                print("OCR returned impossible result. Rejected.")
-            else:
-                save(date,newNumber)
-                lastvalidMeter = newNumber
-                last_date = date
-        else:
-            print("filepath "+filepath+" is older then last valid data")
-            
+          
     import os
 
-    root_dir = './images/'
-
-    for directory, subdirectories, files in os.walk(root_dir):
-        for file in files:
-            filepath = os.path.join(directory, file)
-            if ".jpg" in filepath:
-                processFile(filepath)
+    if os.path.isdir(path):
+        for directory, subdirectories, files in os.walk(path):
+            for file in files:
+                filepath = os.path.join(directory, file)
+                if ".jpg" in filepath:
+                    processFile(filepath)
+    else:
+        processFile(path)
+        
