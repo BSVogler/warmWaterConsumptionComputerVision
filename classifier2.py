@@ -66,7 +66,7 @@ def getMeterFromImage(filename):
 
     # %% find rightmost yellow and blue pixel
     def findMaximumColor(imgHSV, searchRGB, errormarginH, minS):
-        '''find peak position in image using scale space'''
+        """find peak position in image using scale space"""
         if verbose:
             print("calculating histogram to find the color peak pos " + str(searchRGB))
         searchH = matplotlib.colors.rgb_to_hsv(searchRGB)[0];
@@ -123,7 +123,7 @@ def getMeterFromImage(filename):
     rotatedRGB = rotatedRGB.rotate(angle, resample=Image.BILINEAR, center=yellowCenter)
 
     def rotate2Dvector(point, angleRad, origin=(0, 0)):
-        '''rotates a 2d vector'''
+        """rotates a 2d vector"""
         cos_theta, sin_theta = math.cos(angleRad), math.sin(angleRad)
         x, y = point[0] - origin[0], point[1] - origin[1]  # translate
         Point = namedtuple('Point', 'x y')
@@ -226,13 +226,13 @@ def getMeterFromImage(filename):
         display(rotatedRGB)
 
     def segmentDigits(rect, segmentRGB, draw):
-        '''
+        """
         segment digits from rectangle
         :param rect:
         :param segmentRGB:
         :param draw:
         :return:
-        '''
+        """
         digits = []
         numberOfDigits = 8
         width = rect.right - rect.left
@@ -258,13 +258,13 @@ def getMeterFromImage(filename):
 
     # %%
     def ocr(digitsRGB):
-        '''
+        """
         performs ocr using tesseract, input is list of numpy images
         todo improve using https://github.com/tesseract-ocr/tesseract/wiki/ImproveQuality
     
         :param digitsRGB:
         :return:
-        '''
+        """
         digitValue = int(1e5)  # value of the next digit
         asValue = int(0)  # resulting value
 
@@ -361,6 +361,11 @@ def save(date, number):
 
 
 def processFile(filepath):
+    """
+    extract text from image and write it to list
+    :param filepath:
+    :return:
+    """
     global lastvalidMeter
     global last_date
 
@@ -404,6 +409,7 @@ if __name__ == '__main__':
 
     import os
 
+    #if is directory for every image
     if os.path.isdir(path):
         for directory, subdirectories, files in os.walk(path):
             for file in files:
