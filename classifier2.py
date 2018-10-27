@@ -75,6 +75,9 @@ def segment_core(hsv):
     yellowCenter = findMaximumColor(hsv, (214, 163, 33), errormarginH=0.04, minS=0.3)  # 838ms! per call, intel 806
     yellowCenter = (yellowCenter[0] + yellowCorrection[0], yellowCenter[1] + yellowCorrection[1])
     blueCenter = findMaximumColor(hsv, (12, 41, 94), errormarginH=0.03, minS=0.6)
+    if blueCenter[1] == 0:
+        print("Blue cross could not be found.")
+        return None, None
     blueCenter = [blueCenter[0] + blueCorrection[0], blueCenter[1] + blueCorrection[1]]
 
     angle = -math.degrees(math.atan((abs(yellowCenter[0] - blueCenter[0])) / (abs(yellowCenter[1] - blueCenter[1]))))
@@ -120,7 +123,7 @@ def segment_core(hsv):
     green = matplotlib.colors.rgb_to_hsv((0.35, 0.4, 0.12))[0]
     # average values orthogonal to interesting line
     averageWidth = 28
-    averageHue = rotatedHSV[yellowCenter[0] - int(averageWidth / 2): yellowCenter[0] + int(averageWidth / 2),
+    averageHue = rotatedHSV[yellowCenter[0] - averageWidth // 2: yellowCenter[0] + averageWidth // 2,
                  yellowCenter[1] + 13:yellowCenter[1] + 93,
                  :]
     # display(Image.fromarray(np.uint8(averageHue*255)))
@@ -128,7 +131,6 @@ def segment_core(hsv):
     # look for left green border
     distanceHue = []
     for offc in range(0, 80):
-        c = yellowCenter[1] + offc
         if averageHue[offc][1] > 0.22 and averageHue[offc][2] > 0.4:
             distanceHue.append(abs(averageHue[offc][0] - green))
         else:
@@ -144,8 +146,9 @@ def segment_core(hsv):
 
     # right side
     rangeLeft = -80
-    averageHue = rotatedHSV[blueCenterRotated[0] - int(averageWidth / 2): blueCenterRotated[0] + int(averageWidth / 2),
-                 blueCenterRotated[1] + rangeLeft: blueCenterRotated[1],
+    averageHue = rotatedHSV[
+                 blueCenterRotated[0] - averageWidth // 2 : blueCenterRotated[0] + averageWidth // 2,
+                 blueCenterRotated[1] + rangeLeft : blueCenterRotated[1],
                  :]
 
     # display(Image.fromarray(np.uint8(averageHue*255)))
@@ -159,7 +162,6 @@ def segment_core(hsv):
     distanceHue = []
 
     for offc in range(rangeLeft, 0):
-        c = blueCenterRotated[1] + offc
         if averageHue[offc][1] > 0.4 and averageHue[offc][2] > 0.35:
             distanceHue.append(abs(averageHue[offc][0] - green))
         else:
@@ -197,8 +199,8 @@ def segment_core(hsv):
 
         display(rotatedRGB)
 
-    if (interestingSegment.right - interestingSegment.left) < 40:
-        print("Width of segment is too small. Segmentation failed."+str(interestingSegment))
+    if (interestingSegment.right - interestingSegment.left) < 40 or yellowCenter[0] < 20:
+        print("Segment is too small. Segmentation failed."+str(interestingSegment))
         return None, rotatedRGB
 
     return interestingSegment, rotatedRGB
@@ -214,16 +216,13 @@ def digitsegments_from_segment(rect, segmentRGB):
     digits = []
     numberOfDigits = 8
     width = rect.right - rect.left
-    digitWidth = int(width / numberOfDigits)
-    xLeftBorder = rect.left + digitWidth * 2  # skip first wo digits
+    digitWidth = width // numberOfDigits
 
     # toimage(segmentRGB[rect.top : rect.bottom, rect.left : rect.right]).show()
-    for x in range(rect.left, rect.right, digitWidth):
-        if x > rect.left + digitWidth * 2:  # skip first line and first two digit
+    for x in range(rect.left + digitWidth * 2, rect.right-digitWidth, digitWidth):
             digit = segmentRGB[rect.top: rect.bottom,
-                    xLeftBorder + 13: x]  # little bit of offset because of the border
+                    x+13: x+13+digitWidth]  # little bit of offset because of the border
             digits.append(digit)
-            xLeftBorder = x
 
     return digits
 
@@ -462,4 +461,4 @@ if __name__ == '__main__':
         rgbOrigPIL.load()
         rgb = np.asarray(rgbOrigPIL, dtype="float32")[150:-300, 250:-310, :]
         hsv = matplotlib.colors.rgb_to_hsv(rgb)
-        digitsegments_from_image(hsv, save_folder="digitsDataset")
+        digitsegments_from_image(hsv)#, save_folder="digitsDataset"
