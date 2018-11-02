@@ -281,6 +281,12 @@ def digitsegments_from_image(hsv, save_folder=None):
             global digitCounter
             for d in digits:
                 if save is not None:
+                    if digitCounter < 10:
+                        filename= "00"+str(digitCounter)
+                    elif digitCounter < 100:
+                        filename = "0"+str(digitCounter)
+                    else:
+                        filename = str(digitCounter)
                     Image.fromarray(np.uint8(d)).save(save_folder + "/" + str(digitCounter) + ".jpg")
                     digitCounter += 1
                 else:
