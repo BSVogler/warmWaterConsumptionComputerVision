@@ -29,15 +29,16 @@ inputs = np.empty((numItems, img_cols, img_rows, 3))
 #%% read images and pad them
 
 for i, file in enumerate(files):
-    read = np.asarray(Image.open(dataDir + file))
-    print(str(i)+":"+str(read.shape)+file)
-    inputs[i] = np.pad(read, (((img_cols-read.shape[0])//2, (img_cols-read.shape[0])//2),
-                              ((img_rows-read.shape[1])//2, (img_rows-read.shape[1]+1)//2),
-                              (0, 0)),
-    'constant')
-    # limit
-    if i == numItems-1:
-        break
+    if not file.startswith("."):
+        read = np.asarray(Image.open(dataDir + file))
+        # print(str(i)+":"+str(read.shape)+file)
+        inputs[i] = np.pad(read, (((img_cols-read.shape[0])//2, (img_cols-read.shape[0])//2),
+                                  ((img_rows-read.shape[1])//2, (img_rows-read.shape[1]+1)//2),
+                                  (0, 0)),
+        'constant')
+        # limit
+        if i == numItems-1:
+            break
 
 #%%
 # 80/20 split
